@@ -9,6 +9,8 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import java.util.Map;
@@ -33,6 +35,7 @@ public class SubscribeTwitchEvents {
   }
 
   @Post("/twitch/subscribe")
+  @Secured(SecurityRule.IS_AUTHENTICATED)
   public CompletableFuture<HttpResponse<Void>> subscribeTwitchEvents(
     @Body SubscribeTwitchEventsCommand command
   ) {
