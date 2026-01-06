@@ -51,7 +51,7 @@ public class SubscribeTwitchEvents {
         params.put("client_secret", clientSecret);
         params.put("grant_type", "client_credentials");
         return idClient
-          .getToken(Map.of("grant_type", "client_credentials"))
+          .getToken(params)
           .thenCompose(token -> {
             return apiClient.subscribe(
               clientId,
