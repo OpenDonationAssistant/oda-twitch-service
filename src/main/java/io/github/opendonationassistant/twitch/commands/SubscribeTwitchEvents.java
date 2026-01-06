@@ -40,11 +40,11 @@ public class SubscribeTwitchEvents {
     @Body SubscribeTwitchEventsCommand command
   ) {
     return idClient
-      .validate("Bearer %s".formatted(command.userAccessToken))
+      .validate("Bearer %s".formatted(command.userAccessToken()))
       .thenCompose(response -> {
         return apiClient.subscribe(
           clientId,
-          command.userAccessToken(),
+          "Bearer %s".formatted(command.userAccessToken()),
           new SubscribeRequest(
             "channel.follow",
             "2",
