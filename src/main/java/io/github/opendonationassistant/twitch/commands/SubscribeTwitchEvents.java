@@ -59,7 +59,12 @@ public class SubscribeTwitchEvents {
               new SubscribeRequest(
                 "channel.follow",
                 "2",
-                Map.of("broadcaster_user_id", response.userId()),
+                Map.of(
+                  "broadcaster_user_id",
+                  response.userId(),
+                  "moderator_user_id",
+                  response.userId()
+                ),
                 new Transport(
                   "webhook",
                   "https://api.oda.digital/twitch/events",
