@@ -15,3 +15,7 @@ micronaut:
 logger:
   levels:
     io.github.opendonationassistant: INFO
+twitch:
+  client:
+    id: ${TWITCH_CLIENT_ID}
+    secret: ${TWITCH_CLIENT_SECRET}
