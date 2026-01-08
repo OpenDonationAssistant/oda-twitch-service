@@ -43,7 +43,7 @@ public class UnsubscribeTwitchEvents {
       this.unsubscribe = unsubscribe;
     }
 
-    @Post("/twitch/subscribe")
+    @Post("/twitch/unsubscribeAll")
     @Secured(SecurityRule.IS_AUTHENTICATED)
     public CompletableFuture<HttpResponse<Void>> subscribeTwitchEvents(
       @Body UnsubscribeAllTwitchEventCommand command
