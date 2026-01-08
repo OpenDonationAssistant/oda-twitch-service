@@ -1,6 +1,7 @@
 package io.github.opendonationassistant.integration.twitch;
 
 import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Header;
 import io.micronaut.http.annotation.Post;
@@ -12,12 +13,25 @@ import java.util.concurrent.CompletableFuture;
 
 @Client("twitch-api")
 public interface TwitchApiClient {
-
   @Post("/helix/eventsub/subscriptions")
   public CompletableFuture<SubscribeResponse> subscribe(
     @Header("Client-Id") String clientId,
     @Header("Authorization") String auth,
     @Body SubscribeRequest request
+  );
+
+  @Get("/helix/eventsub/subscriptions")
+  public CompletableFuture<DataWrapper<Subscription[]>> getSubscriptions(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth
+  );
+
+  @Delete("/helix/eventsub/subscriptions")
+  public CompletableFuture<SubscribeResponse> deleteSubscription(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("status") String status,
+    @QueryValue("id") String id
   );
 
   @Get("/helix/users")
@@ -33,6 +47,15 @@ public interface TwitchApiClient {
     String version,
     Map<String, String> condition,
     Transport transport
+  ){}
+
+  @Serdeable
+  public static record Subscription(
+    String id,
+    String type,
+    String version,
+    Map<String, String> condition,
+    Transport transport
   ) {}
 
   @Serdeable
@@ -43,7 +66,7 @@ public interface TwitchApiClient {
   ) {}
 
   @Serdeable
-  public static record SubscribeResponse(Integer total){}
+  public static record SubscribeResponse(Integer total) {}
 
   @Serdeable
   public static record DataWrapper<T>(T data) {}

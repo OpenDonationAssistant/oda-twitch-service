@@ -2,7 +2,6 @@ package io.github.opendonationassistant.twitch.listener;
 
 import io.github.opendonationassistant.events.twitch.TwitchCommand.SubscribeEvent;
 import io.github.opendonationassistant.events.twitch.TwitchCommand.UnsubscribeAllEvent;
-import io.github.opendonationassistant.events.twitch.TwitchCommand.UnsubscribeEvent;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Transport;
@@ -18,7 +17,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
 @RabbitListener
 public class CommandListener {
