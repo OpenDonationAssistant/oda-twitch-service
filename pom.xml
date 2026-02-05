@@ -1,42 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.opendonationassistant</groupId>
   <artifactId>oda-twitch-service</artifactId>
   <version>0.0.1</version>
   <packaging>${packaging}</packaging>
-
   <parent>
     <groupId>io.micronaut.platform</groupId>
     <artifactId>micronaut-parent</artifactId>
-    <version>4.10.2</version>
+    <version>4.10.6</version>
   </parent>
-
   <properties>
     <packaging>jar</packaging>
     <jdk.version>25</jdk.version>
     <release.version>25</release.version>
-    <micronaut.version>4.10.2</micronaut.version>
     <micronaut.test.resources.enabled>true</micronaut.test.resources.enabled>
     <micronaut.runtime>netty</micronaut.runtime>
     <micronaut.aot.enabled>false</micronaut.aot.enabled>
     <micronaut.aot.packageName>io.github.opendonationassistant.aot.generated</micronaut.aot.packageName>
     <exec.mainClass>io.github.opendonationassistant.Application</exec.mainClass>
   </properties>
-
   <repositories>
     <repository>
       <id>central</id>
       <url>https://repo.maven.apache.org/maven2</url>
     </repository>
   </repositories>
-
   <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.uuid</groupId>
+      <artifactId>java-uuid-generator</artifactId>
+      <version>5.0.0</version>
+    </dependency>
     <dependency>
       <groupId>io.github.opendonationassistant</groupId>
       <artifactId>oda-rabbit-conf</artifactId>
-      <version>0.9.121</version>
+      <version>0.9.134</version>
     </dependency>
     <dependency>
       <groupId>io.micronaut</groupId>
@@ -132,6 +131,14 @@
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>io.micronaut.micrometer</groupId>
+      <artifactId>micronaut-micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micronaut</groupId>
+      <artifactId>micronaut-management</artifactId>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -139,13 +146,13 @@
         <groupId>io.micronaut.maven</groupId>
         <artifactId>micronaut-maven-plugin</artifactId>
         <configuration>
-              <aotDependencies>
-                  <dependency>
-                      <groupId>io.micronaut.security</groupId>
-                      <artifactId>micronaut-security-aot</artifactId>
-                      <version>${micronaut.security.version}</version>
-                  </dependency>
-              </aotDependencies>
+          <aotDependencies>
+            <dependency>
+              <groupId>io.micronaut.security</groupId>
+              <artifactId>micronaut-security-aot</artifactId>
+              <version>${micronaut.security.version}</version>
+            </dependency>
+          </aotDependencies>
           <configFile>aot-${packaging}.properties</configFile>
         </configuration>
       </plugin>
@@ -155,7 +162,6 @@
         <configuration>
           <!-- Uncomment to enable incremental compilation -->
           <!-- <useIncrementalCompilation>false</useIncrementalCompilation> -->
-
           <annotationProcessorPaths combine.self="override">
             <path>
               <groupId>io.micronaut</groupId>
@@ -205,23 +211,36 @@
                 </exclusion>
               </exclusions>
             </path>
+            <path>
+              <groupId>com.google.errorprone</groupId>
+              <artifactId>error_prone_core</artifactId>
+              <version>2.45.0</version>
+            </path>
+            <path>
+              <groupId>com.uber.nullaway</groupId>
+              <artifactId>nullaway</artifactId>
+              <version>0.12.12</version>
+            </path>
           </annotationProcessorPaths>
           <compilerArgs>
             <arg>-Amicronaut.processing.group=io.github.opendonationassistant</arg>
             <arg>-Amicronaut.processing.module=oda-twitch-service</arg>
+            <arg>-XDcompilePolicy=simple</arg>
+            <arg>--should-stop=ifError=FLOW</arg>
+            <arg>-Xplugin:ErrorProne -XepOpt:NullAway:AnnotatedPackages=io.github.opendonationassistant -XepOpt:NullAway:JSpecifyMode=true -Xep:NullAway:ERROR</arg>
           </compilerArgs>
         </configuration>
       </plugin>
       <plugin>
-          <groupId>org.graalvm.buildtools</groupId>
-          <artifactId>native-maven-plugin</artifactId>
-          <version>0.11.3</version>
-          <configuration>
-              <buildArgs>
-                  <buildArg>--initialize-at-build-time=io.micronaut.context.ApplicationContextConfigurer$1</buildArg>
-                  <buildArg>-H:+SharedArenaSupport</buildArg>
-              </buildArgs>
-          </configuration>
+        <groupId>org.graalvm.buildtools</groupId>
+        <artifactId>native-maven-plugin</artifactId>
+        <version>0.11.3</version>
+        <configuration>
+          <buildArgs>
+            <buildArg>--initialize-at-build-time=io.micronaut.context.ApplicationContextConfigurer$1</buildArg>
+            <buildArg>-H:+SharedArenaSupport</buildArg>
+          </buildArgs>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.openapitools</groupId>
@@ -234,7 +253,7 @@
               <goal>generate</goal>
             </goals>
             <configuration>
-            <inputSpec>${project.basedir}/target/classes/META-INF/swagger/oda-twitch-service-1.0.0.yml</inputSpec>
+              <inputSpec>${project.basedir}/target/classes/META-INF/swagger/oda-twitch-service-1.0.0.yml</inputSpec>
               <generatorName>typescript-axios</generatorName>
               <configurationFile>openapi-config.json</configurationFile>
               <configOptions>
@@ -266,5 +285,4 @@
       </plugin>
     </plugins>
   </build>
-
 </project>

@@ -12,10 +12,18 @@ micronaut:
           jwks:
             keycloak:
               url: https://auth.oda.digital/realms/ODA/protocol/openid-connect/certs
-logger:
-  levels:
-    io.github.opendonationassistant: INFO
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT1M
 twitch:
   client:
     id: ${TWITCH_CLIENT_ID}
     secret: ${TWITCH_CLIENT_SECRET}
+endpoints:
+  prometheus:
+    sensitive: false
+  metrics:
+    sensitive: false

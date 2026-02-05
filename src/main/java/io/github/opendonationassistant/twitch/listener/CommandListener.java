@@ -1,11 +1,13 @@
 package io.github.opendonationassistant.twitch.listener;
 
+import io.github.opendonationassistant.events.twitch.TwitchCommand.LinkAccount;
 import io.github.opendonationassistant.events.twitch.TwitchCommand.SubscribeEvent;
 import io.github.opendonationassistant.events.twitch.TwitchCommand.UnsubscribeAllEvent;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Transport;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.messaging.annotation.MessageHeader;
 import io.micronaut.rabbitmq.annotation.Queue;
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @RabbitListener
@@ -25,18 +28,21 @@ public class CommandListener {
   private final String clientSecret;
   private final TwitchIdClient idClient;
   private final TwitchApiClient apiClient;
+  private final TwitchAccountRepository repository;
 
   @Inject
   public CommandListener(
     @Value("${twitch.client.id}") String clientId,
     @Value("${twitch.client.secret}") String clientSecret,
     TwitchIdClient idClient,
-    TwitchApiClient apiClient
+    TwitchApiClient apiClient,
+    TwitchAccountRepository repository
   ) {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.idClient = idClient;
     this.apiClient = apiClient;
+    this.repository = repository;
   }
 
   @Queue(io.github.opendonationassistant.rabbit.Queue.Twitch.COMMAND)
@@ -45,18 +51,38 @@ public class CommandListener {
     byte[] payload
   ) throws IOException {
     switch (type) {
+      case "LinkAccount":
+        return Optional.ofNullable(
+          ObjectMapper.getDefault().readValue(payload, LinkAccount.class)
+        )
+          .map(this::handleLinkAccount)
+          .orElse(CompletableFuture.completedFuture(null));
       case "SubscribeEvent":
-        return handleSubscribeEvent(
+        return Optional.ofNullable(
           ObjectMapper.getDefault().readValue(payload, SubscribeEvent.class)
-        );
+        )
+          .map(this::handleSubscribeEvent)
+          .orElse(CompletableFuture.completedFuture(null));
       case "UnsubscribeAllEvent":
-        return handleUnsubscribeAllEvent(
+        return Optional.ofNullable(
           ObjectMapper.getDefault()
             .readValue(payload, UnsubscribeAllEvent.class)
-        );
+        )
+          .map(this::handleUnsubscribeAllEvent)
+          .orElse(CompletableFuture.completedFuture(null));
       default:
         return CompletableFuture.completedFuture(null);
     }
+  }
+
+  private CompletableFuture<?> handleLinkAccount(LinkAccount command) {
+    return CompletableFuture.completedFuture(
+      repository.create(
+        command.recipientId(),
+        command.twitchId(),
+        command.twitchLogin()
+      )
+    );
   }
 
   private CompletableFuture<?> handleSubscribeEvent(SubscribeEvent event) {

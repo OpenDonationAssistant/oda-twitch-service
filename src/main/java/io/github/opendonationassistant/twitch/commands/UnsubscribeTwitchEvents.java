@@ -12,7 +12,6 @@ import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import java.util.concurrent.CompletableFuture;
-import org.jspecify.annotations.Nullable;
 
 public class UnsubscribeTwitchEvents {
 
@@ -56,6 +55,6 @@ public class UnsubscribeTwitchEvents {
 
   @Serdeable
   public static record UnsubscribeAllTwitchEventCommand(
-    @Nullable String userAccessToken
+    String userAccessToken
   ) {}
 }

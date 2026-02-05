@@ -10,6 +10,7 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.annotation.Serdeable;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.jspecify.annotations.Nullable;
 
 @Client("twitch-api")
 public interface TwitchApiClient {
@@ -30,8 +31,8 @@ public interface TwitchApiClient {
   public CompletableFuture<SubscribeResponse> deleteSubscription(
     @Header("Client-Id") String clientId,
     @Header("Authorization") String auth,
-    @QueryValue("status") String status,
-    @QueryValue("id") String id
+    @Nullable @QueryValue("status") String status,
+    @Nullable @QueryValue("id") String id
   );
 
   @Get("/helix/users")
@@ -47,7 +48,7 @@ public interface TwitchApiClient {
     String version,
     Map<String, String> condition,
     Transport transport
-  ){}
+  ) {}
 
   @Serdeable
   public static record Subscription(

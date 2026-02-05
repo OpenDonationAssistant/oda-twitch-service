@@ -1,5 +1,7 @@
 package io.github.opendonationassistant.twitch.commands;
 
+import io.github.opendonationassistant.commons.micronaut.BaseController;
+import io.github.opendonationassistant.events.twitch.TwitchCommand.LinkAccount;
 import io.github.opendonationassistant.events.twitch.TwitchCommand.SubscribeEvent;
 import io.github.opendonationassistant.events.twitch.TwitchFacade;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
@@ -8,13 +10,14 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.authentication.Authentication;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-public class SubscribeTwitchEvents {
+public class SubscribeTwitchEvents extends BaseController {
 
   private final TwitchIdClient idClient;
   private final TwitchFacade facade;
@@ -25,13 +28,16 @@ public class SubscribeTwitchEvents {
     this.facade = facade;
   }
 
-  public CompletableFuture<?> byToken(String token) {
+  public CompletableFuture<?> byToken(String recipientId, String token) {
     return idClient
       .validate("Bearer %s".formatted(token))
       .thenCompose(response -> {
         Function<String, CompletableFuture<Void>> subscribe = type ->
           facade.subscribe(new SubscribeEvent(response.userId(), type));
         return CompletableFuture.allOf(
+          facade.link(
+            new LinkAccount(recipientId, response.userId(), response.login())
+          ),
           subscribe.apply("channel.follow"),
           subscribe.apply("channel.subscribe"),
           subscribe.apply("channel.subscription.gift"),
@@ -57,7 +63,7 @@ public class SubscribeTwitchEvents {
   }
 
   @Controller
-  public static class HttpWrapper {
+  public static class HttpWrapper extends BaseController {
 
     private final SubscribeTwitchEvents subscribe;
 
@@ -69,10 +75,15 @@ public class SubscribeTwitchEvents {
     @Post("/twitch/subscribe")
     @Secured(SecurityRule.IS_AUTHENTICATED)
     public CompletableFuture<HttpResponse<Void>> subscribeTwitchEvents(
+      Authentication auth,
       @Body SubscribeTwitchEventsCommand command
     ) {
+      var recipientId = getOwnerId(auth);
+      if (recipientId.isEmpty()) {
+        return CompletableFuture.completedFuture(HttpResponse.unauthorized());
+      }
       return subscribe
-        .byToken(command.userAccessToken())
+        .byToken(recipientId.get(), command.userAccessToken())
         .thenApply(response -> {
           return HttpResponse.ok();
         });
