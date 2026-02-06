@@ -2,3 +2,10 @@ rabbitmq.host: ${RABBITMQ_HOST:`localhost`}
 logger:
   levels:
     io.github.opendonationassistant: INFO
+datasources:
+  default:
+    url: ${JDBC_URL:`jdbc:postgresql://localhost/postgres?currentSchema=automation`}
+    username: ${JDBC_USER:`postgres`}
+    password: ${JDBC_PASSWORD:`postgres`}
+    driverClassName: 'org.postgresql.Driver'
+    maximumPoolSize: 2
