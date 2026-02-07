@@ -3,6 +3,7 @@ package io.github.opendonationassistant.twitch.webhook;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
+import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.twitch.TwitchFacade;
 import io.github.opendonationassistant.events.twitch.events.TwitchChannelCheerEvent;
 import io.github.opendonationassistant.events.twitch.events.TwitchChannelFollowEvent;
@@ -32,6 +33,7 @@ public class TwitchEventsWebhook {
   private final TimeBasedEpochGenerator uuid =
     Generators.timeBasedEpochGenerator();
   private final TwitchAccountRepository repository;
+  private final ODALogger log = new ODALogger(this);
 
   @Inject
   public TwitchEventsWebhook(
@@ -132,9 +134,16 @@ public class TwitchEventsWebhook {
                 return CompletableFuture.completedFuture(null);
             }
           })
-          .orElseGet(() -> CompletableFuture.completedFuture(null))
+          .orElseGet(() -> {
+            log.info(
+              "No account found for user in webhook",
+              Map.of("message", message)
+            );
+            return CompletableFuture.completedFuture(null);
+          })
           .thenApply(response -> HttpResponse.ok(""));
       default:
+        log.info("Unknown webhook message type", Map.of("type", type));
         return CompletableFuture.completedFuture(HttpResponse.ok(""));
     }
   }
