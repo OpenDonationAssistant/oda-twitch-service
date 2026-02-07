@@ -50,6 +50,10 @@ public class TwitchEventsWebhook {
     @Header("Twitch-Eventsub-Message-Type") String type,
     @Body Message message
   ) {
+    log.debug(
+      "Received webhook message",
+      Map.of("type", type, "message", message)
+    );
     switch (type) {
       case "webhook_callback_verification":
         return CompletableFuture.completedFuture(
