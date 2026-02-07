@@ -22,6 +22,10 @@ twitch:
   client:
     id: ${TWITCH_CLIENT_ID}
     secret: ${TWITCH_CLIENT_SECRET}
+flyway:
+  datasources:
+    default:
+      enabled: true
 endpoints:
   prometheus:
     sensitive: false
