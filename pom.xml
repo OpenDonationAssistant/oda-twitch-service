@@ -5,27 +5,36 @@
   <artifactId>oda-twitch-service</artifactId>
   <version>0.0.1</version>
   <packaging>${packaging}</packaging>
+
   <parent>
     <groupId>io.micronaut.platform</groupId>
     <artifactId>micronaut-parent</artifactId>
-    <version>4.10.6</version>
+    <version>4.10.9</version>
   </parent>
+
   <properties>
     <packaging>jar</packaging>
     <jdk.version>25</jdk.version>
     <release.version>25</release.version>
     <micronaut.test.resources.enabled>true</micronaut.test.resources.enabled>
-    <micronaut.runtime>netty</micronaut.runtime>
     <micronaut.aot.enabled>false</micronaut.aot.enabled>
     <micronaut.aot.packageName>io.github.opendonationassistant.aot.generated</micronaut.aot.packageName>
     <exec.mainClass>io.github.opendonationassistant.Application</exec.mainClass>
+    <sonar.organization>opendonationassistant</sonar.organization>
+    <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+    <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
+    <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
+    <sonar.jacoco.reportPath>${project.basedir}/target/jacoco.exec</sonar.jacoco.reportPath>
+    <sonar.language>java</sonar.language>
   </properties>
+
   <repositories>
     <repository>
       <id>central</id>
       <url>https://repo.maven.apache.org/maven2</url>
     </repository>
   </repositories>
+
   <dependencies>
     <dependency>
       <groupId>com.fasterxml.uuid</groupId>
@@ -35,7 +44,7 @@
     <dependency>
       <groupId>io.github.opendonationassistant</groupId>
       <artifactId>oda-rabbit-conf</artifactId>
-      <version>0.9.137</version>
+      <version>0.10.159</version>
     </dependency>
     <dependency>
       <groupId>io.micronaut</groupId>
@@ -140,6 +149,7 @@
       <artifactId>micronaut-management</artifactId>
     </dependency>
   </dependencies>
+
   <build>
     <plugins>
       <plugin>
@@ -229,17 +239,6 @@
             <arg>--should-stop=ifError=FLOW</arg>
             <arg>-Xplugin:ErrorProne -XepOpt:NullAway:AnnotatedPackages=io.github.opendonationassistant -XepOpt:NullAway:JSpecifyMode=true -Xep:NullAway:ERROR</arg>
           </compilerArgs>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.graalvm.buildtools</groupId>
-        <artifactId>native-maven-plugin</artifactId>
-        <version>0.11.3</version>
-        <configuration>
-          <buildArgs>
-            <buildArg>--initialize-at-build-time=io.micronaut.context.ApplicationContextConfigurer$1</buildArg>
-            <buildArg>-H:+SharedArenaSupport</buildArg>
-          </buildArgs>
         </configuration>
       </plugin>
       <plugin>
