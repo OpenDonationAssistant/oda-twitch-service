@@ -1,73 +1,71 @@
 # ODA Twitch Service
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/OpenDonationAssistant/oda-twitch-service)
+[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=OpenDonationAssistant_oda-twitch-service)](https://sonarcloud.io/summary/new_code?id=OpenDonationAssistant_oda-twitch-service)
 
-## Micronaut 4.10.0 Documentation
+## Running with Docker
 
-- [User Guide](https://docs.micronaut.io/4.10.0/guide/index.html)
-- [API Reference](https://docs.micronaut.io/4.10.0/api/index.html)
-- [Configuration Reference](https://docs.micronaut.io/4.10.0/guide/configurationreference.html)
-- [Micronaut Guides](https://guides.micronaut.io/index.html)
----
+The service is published to GitHub Container Registry.
 
-- [Micronaut Maven Plugin documentation](https://micronaut-projects.github.io/micronaut-maven-plugin/latest/)
-## Feature maven-enforcer-plugin documentation
+### Environment Variables
 
-- [https://maven.apache.org/enforcer/maven-enforcer-plugin/](https://maven.apache.org/enforcer/maven-enforcer-plugin/)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TWITCH_CLIENT_ID` | Twitch API client ID | (required) |
+| `TWITCH_CLIENT_SECRET` | Twitch API client secret | (required) |
+| `JDBC_URL` | PostgreSQL connection URL | `jdbc:postgresql://localhost/postgres?currentSchema=automation` |
+| `JDBC_USER` | PostgreSQL username | `postgres` |
+| `JDBC_PASSWORD` | PostgreSQL password | `postgres` |
+| `RABBITMQ_HOST` | RabbitMQ host | `localhost` |
 
+### Docker Run Example
 
-## Feature jdbc-hikari documentation
+```bash
+docker run -d \
+  --name oda-twitch-service \
+  -p 8080:8080 \
+  -e TWITCH_CLIENT_ID=your_client_id \
+  -e TWITCH_CLIENT_SECRET=your_client_secret \
+  -e JDBC_URL=jdbc:postgresql://postgres:5432/automation \
+  -e JDBC_USER=postgres \
+  -e JDBC_PASSWORD=your_password \
+  -e RABBITMQ_HOST=rabbitmq \
+  ghcr.io/opendonationassistant/oda-twitch-service:latest
+```
 
-- [Micronaut Hikari JDBC Connection Pool documentation](https://micronaut-projects.github.io/micronaut-sql/latest/guide/index.html#jdbc)
+### Docker Compose Example
 
+```yaml
+services:
+  oda-twitch-service:
+    image: ghcr.io/opendonationassistant/oda-twitch-service:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - TWITCH_CLIENT_ID=your_client_id
+      - TWITCH_CLIENT_SECRET=your_client_secret
+      - JDBC_URL=jdbc:postgresql://postgres:5432/automation
+      - JDBC_USER=postgres
+      - JDBC_PASSWORD=your_password
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - postgres
+      - rabbitmq
 
-## Feature security-jwt documentation
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=your_password
+      - POSTGRES_DB=automation
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-- [Micronaut Security JWT documentation](https://micronaut-projects.github.io/micronaut-security/latest/guide/index.html)
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "15672:15672"
 
-
-## Feature test-resources documentation
-
-- [Micronaut Test Resources documentation](https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/)
-
-
-## Feature openapi documentation
-
-- [Micronaut OpenAPI Support documentation](https://micronaut-projects.github.io/micronaut-openapi/latest/guide/index.html)
-
-- [https://www.openapis.org](https://www.openapis.org)
-
-
-## Feature flyway documentation
-
-- [Micronaut Flyway Database Migration documentation](https://micronaut-projects.github.io/micronaut-flyway/latest/guide/index.html)
-
-- [https://flywaydb.org/](https://flywaydb.org/)
-
-
-## Feature data-jdbc documentation
-
-- [Micronaut Data JDBC documentation](https://micronaut-projects.github.io/micronaut-data/latest/guide/index.html#jdbc)
-
-
-## Feature problem-json documentation
-
-- [Micronaut Problem JSON documentation](https://micronaut-projects.github.io/micronaut-problem-json/latest/guide/index.html)
-
-
-## Feature micronaut-aot documentation
-
-- [Micronaut AOT documentation](https://micronaut-projects.github.io/micronaut-aot/latest/guide/)
-
-
-## Feature cache-caffeine documentation
-
-- [Micronaut Caffeine Cache documentation](https://micronaut-projects.github.io/micronaut-cache/latest/guide/index.html)
-
-- [https://github.com/ben-manes/caffeine](https://github.com/ben-manes/caffeine)
-
-
-## Feature mockito documentation
-
-- [https://site.mockito.org](https://site.mockito.org)
-
+volumes:
+  postgres_data:
+```
 

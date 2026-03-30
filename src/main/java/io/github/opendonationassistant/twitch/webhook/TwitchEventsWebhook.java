@@ -9,6 +9,8 @@ import io.github.opendonationassistant.events.twitch.events.TwitchChannelCheerEv
 import io.github.opendonationassistant.events.twitch.events.TwitchChannelFollowEvent;
 import io.github.opendonationassistant.events.twitch.events.TwitchChannelSubscriptionGiftEvent;
 import io.github.opendonationassistant.events.twitch.events.TwitchChannelSubscriptionMessageEvent;
+import io.github.opendonationassistant.events.twitch.events.TwitchStreamEndedEvent;
+import io.github.opendonationassistant.events.twitch.events.TwitchStreamStartedEvent;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
@@ -133,6 +135,14 @@ public class TwitchEventsWebhook {
                       .map(String::valueOf)
                       .orElse("0")
                   )
+                );
+              case "stream.online":
+                return facade.sendEvent(
+                  new TwitchStreamStartedEvent(id, account.recipientId())
+                );
+              case "stream.offline":
+                return facade.sendEvent(
+                  new TwitchStreamEndedEvent(id, account.recipientId())
                 );
               default:
                 return CompletableFuture.completedFuture(null);
