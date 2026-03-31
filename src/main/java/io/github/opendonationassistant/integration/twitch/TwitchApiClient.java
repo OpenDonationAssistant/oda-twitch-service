@@ -1,5 +1,6 @@
 package io.github.opendonationassistant.integration.twitch;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
@@ -8,6 +9,7 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.annotation.Serdeable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.Nullable;
@@ -33,6 +35,14 @@ public interface TwitchApiClient {
     @Header("Authorization") String auth,
     @Nullable @QueryValue("status") String status,
     @Nullable @QueryValue("id") String id
+  );
+
+  @Get("/helix/streams")
+  public CompletableFuture<DataWrapper<List<Stream>>> getStreams(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("user_id") String userId,
+    @QueryValue("type") String type
   );
 
   @Get("/helix/users")
@@ -77,5 +87,10 @@ public interface TwitchApiClient {
     String id,
     String login,
     String display_name
+  ) {}
+
+  @Serdeable
+  public static record Stream(
+    @JsonProperty("thumbnail_url") String thumbnailUrl
   ) {}
 }

@@ -11,7 +11,11 @@ import io.github.opendonationassistant.events.twitch.events.TwitchChannelSubscri
 import io.github.opendonationassistant.events.twitch.events.TwitchChannelSubscriptionMessageEvent;
 import io.github.opendonationassistant.events.twitch.events.TwitchStreamEndedEvent;
 import io.github.opendonationassistant.events.twitch.events.TwitchStreamStartedEvent;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
+import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
+import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
+import io.micronaut.context.annotation.Value;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -22,6 +26,7 @@ import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,19 +36,31 @@ import org.jspecify.annotations.Nullable;
 @Controller
 public class TwitchEventsWebhook {
 
+  private final ODALogger log = new ODALogger(this);
   private final TwitchFacade facade;
   private final TimeBasedEpochGenerator uuid =
     Generators.timeBasedEpochGenerator();
   private final TwitchAccountRepository repository;
-  private final ODALogger log = new ODALogger(this);
+  private final String clientId;
+  private final String clientSecret;
+  private final TwitchIdClient idClient;
+  private final TwitchApiClient api;
 
   @Inject
   public TwitchEventsWebhook(
     TwitchFacade facade,
-    TwitchAccountRepository repository
+    TwitchAccountRepository repository,
+    @Value("${twitch.client.id}") String clientId,
+    @Value("${twitch.client.secret}") String clientSecret,
+    TwitchIdClient idClient,
+    TwitchApiClient api
   ) {
     this.facade = facade;
     this.repository = repository;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.idClient = idClient;
+    this.api = api;
   }
 
   @Post("/twitch/events")
@@ -137,9 +154,28 @@ public class TwitchEventsWebhook {
                   )
                 );
               case "stream.online":
-                return facade.sendEvent(
-                  new TwitchStreamStartedEvent(id, account.recipientId())
-                );
+                return getToken()
+                  .thenCompose(response ->
+                    api.getStreams(
+                      clientId,
+                      response.accessToken(),
+                      account.twitchId(),
+                      "live"
+                    )
+                  )
+                  .thenAccept(stream -> {
+                    Optional.ofNullable(stream.data().getFirst())
+                      .map(it -> it.thumbnailUrl())
+                      .ifPresent(thumbnailUrl ->
+                        facade.sendEvent(
+                          new TwitchStreamStartedEvent(
+                            id,
+                            account.recipientId(),
+                            thumbnailUrl
+                          )
+                        )
+                      );
+                  });
               case "stream.offline":
                 return facade.sendEvent(
                   new TwitchStreamEndedEvent(id, account.recipientId())
@@ -160,6 +196,14 @@ public class TwitchEventsWebhook {
         log.info("Unknown webhook message type", Map.of("type", type));
         return CompletableFuture.completedFuture(HttpResponse.ok(""));
     }
+  }
+
+  private CompletableFuture<GetAccessRecordResponse> getToken() {
+    var params = new HashMap<String, String>();
+    params.put("client_id", clientId);
+    params.put("client_secret", clientSecret);
+    params.put("grant_type", "client_credentials");
+    return idClient.getToken(params);
   }
 
   @Serdeable
