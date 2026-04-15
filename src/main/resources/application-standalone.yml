@@ -8,4 +8,4 @@ datasources:
     username: ${JDBC_USER:`postgres`}
     password: ${JDBC_PASSWORD:`postgres`}
     driverClassName: 'org.postgresql.Driver'
-    maximumPoolSize: 2
+    maximumPoolSize: 1
