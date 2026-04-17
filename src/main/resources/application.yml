@@ -26,6 +26,8 @@ flyway:
   datasources:
     default:
       enabled: true
+      schemas: 'twitch'
+      default-schema: 'twitch'
 endpoints:
   prometheus:
     sensitive: false

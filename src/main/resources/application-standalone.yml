@@ -8,3 +8,5 @@ datasources:
     username: ${JDBC_USER:`postgres`}
     password: ${JDBC_PASSWORD:`postgres`}
     driverClassName: 'org.postgresql.Driver'
+    schema: twitch
+    maximumPoolSize: 2
