@@ -39,6 +39,7 @@ public class SubscribeTwitchEvents extends BaseController {
             new LinkAccount(recipientId, response.userId(), response.login())
           ),
           subscribe.apply("channel.follow"),
+          subscribe.apply("channel.ban"),
           subscribe.apply("channel.subscribe"),
           subscribe.apply("channel.subscription.gift"),
           subscribe.apply("channel.subscription.message"),

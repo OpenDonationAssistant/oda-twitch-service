@@ -11,6 +11,7 @@ import io.github.opendonationassistant.events.twitch.events.TwitchChannelSubscri
 import io.github.opendonationassistant.events.twitch.events.TwitchChannelSubscriptionMessageEvent;
 import io.github.opendonationassistant.events.twitch.events.TwitchStreamEndedEvent;
 import io.github.opendonationassistant.events.twitch.events.TwitchStreamStartedEvent;
+import io.github.opendonationassistant.events.twitch.events.TwitchUserBannedEvent;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
@@ -99,6 +100,18 @@ public class TwitchEventsWebhook {
                     account.recipientId(),
                     username,
                     timestamp
+                  )
+                );
+              case "channel.ban":
+                var isPermanent = event
+                  .map(TwitchEventsWebhook.Event::isPermanent)
+                  .orElse(false);
+                return facade.sendEvent(
+                  new TwitchUserBannedEvent(
+                    id,
+                    account.recipientId(),
+                    username,
+                    isPermanent
                   )
                 );
               case "channel.subscription.gift":
@@ -225,6 +238,7 @@ public class TwitchEventsWebhook {
     @Nullable @JsonProperty("tier") String tier,
     @Nullable @JsonProperty("is_gift") Boolean isGift,
     @Nullable @JsonProperty("is_anonymous") Boolean isAnonymous,
+    @Nullable @JsonProperty("is_permanent") Boolean isPermanent,
     @Nullable @JsonProperty("message") Object message,
     @Nullable @JsonProperty("bits") Integer bits,
     @Nullable @JsonProperty("followed_at") String timestamp,
