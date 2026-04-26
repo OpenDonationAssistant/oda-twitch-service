@@ -25,6 +25,7 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.HashMap;
@@ -66,6 +67,7 @@ public class TwitchEventsWebhook {
 
   @Post("/twitch/events")
   @Secured(SecurityRule.IS_ANONYMOUS)
+  @Operation(hidden = true)
   public CompletableFuture<HttpResponse<String>> twitchWebhook(
     @Header("Twitch-Eventsub-Message-Type") String type,
     @Body Message message
