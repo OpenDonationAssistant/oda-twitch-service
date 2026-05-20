@@ -52,6 +52,8 @@ public class Application {
             "command.SubcribeTwitchEventsCommand",
             CommandListener.QUEUE,
             "command.UnsubscribeAllTwitchEventsCommand",
+            CommandListener.QUEUE,
+            "command.SendAndPinChatMessageCommand",
             CommandListener.QUEUE
           )
         )

@@ -6,6 +6,7 @@ import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Header;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.Put;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.annotation.Serdeable;
@@ -52,6 +53,23 @@ public interface TwitchApiClient {
     @QueryValue("login") String login
   );
 
+  @Post("/helix/chat/messages")
+  CompletableFuture<DataWrapper<List<SendChatMessageResponse>>> sendChatMessage(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @Body SendChatMessageRequest request
+  );
+
+  @Put("/helix/chat/pins")
+  CompletableFuture<Void> pinChatMessage(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("broadcaster_id") String broadcasterId,
+    @QueryValue("moderator_id") String moderatorId,
+    @QueryValue("message_id") String messageId,
+    @Nullable @QueryValue("duration_seconds") Integer durationSeconds
+  );
+
   @Serdeable
   public static record SubscribeRequest(
     String type,
@@ -92,5 +110,18 @@ public interface TwitchApiClient {
   @Serdeable
   public static record Stream(
     @JsonProperty("thumbnail_url") String thumbnailUrl
+  ) {}
+
+  @Serdeable
+  public static record SendChatMessageRequest(
+    @JsonProperty("broadcaster_id") String broadcasterId,
+    @JsonProperty("sender_id") String senderId,
+    String message
+  ) {}
+
+  @Serdeable
+  public static record SendChatMessageResponse(
+    @JsonProperty("message_id") String messageId,
+    @JsonProperty("is_sent") boolean isSent
   ) {}
 }
