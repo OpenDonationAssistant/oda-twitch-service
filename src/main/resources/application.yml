@@ -18,6 +18,13 @@ micronaut:
       prometheus:
         enabled: true
         step: PT1M
+  executors:
+    command-listener:
+      type: fixed
+      nThreads: 1
+    event-listener:
+      type: fixed
+      nThreads: 1
 twitch:
   client:
     id: ${TWITCH_CLIENT_ID}

@@ -10,5 +10,6 @@ import io.micronaut.serde.annotation.Serdeable;
 public record TwitchAccountData(
   @MappedProperty("recipient_id") String recipientId,
   @Id @MappedProperty("twitch_id") String twitchId,
-  @MappedProperty("twitch_login") String twitchLogin
+  @MappedProperty("twitch_login") String twitchLogin,
+  @MappedProperty("refresh_token_id") String refreshTokenId
 ) {}

@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface TwitchAccountDataRepository
   extends CrudRepository<TwitchAccountData, String> {
   Optional<TwitchAccountData> findByTwitchId(String twitchId);
+  Optional<TwitchAccountData> findByRecipientId(String recipientId);
 }

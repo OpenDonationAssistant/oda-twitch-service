@@ -1,0 +1,91 @@
+package io.github.opendonationassistant.twitch.listener.handler;
+
+import io.github.opendonationassistant.events.AbstractMessageHandler;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Transport;
+import io.micronaut.context.annotation.Value;
+import io.micronaut.serde.ObjectMapper;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+import java.io.IOException;
+import java.util.Map;
+
+@Singleton
+public class SubscribeEventsHandler
+  extends AbstractMessageHandler<
+    SubscribeEventsHandler.SubcribeTwitchEventsCommand
+  > {
+
+  private final TwitchApiClient apiClient;
+  private final String clientId;
+
+  @Inject
+  public SubscribeEventsHandler(
+    ObjectMapper mapper,
+    TwitchApiClient apiClient,
+    @Value("${twitch.client.id}") String clientId
+  ) {
+    super(mapper);
+    this.apiClient = apiClient;
+    this.clientId = clientId;
+  }
+
+  @Override
+  public void handle(SubcribeTwitchEventsCommand command) throws IOException {
+    apiClient
+      .subscribe(
+        clientId,
+        "Bearer %s".formatted(command.token()),
+        new SubscribeRequest(
+          command.event(),
+          version(command.event()),
+          Map.of(
+            "broadcaster_user_id",
+            command.twitchId(),
+            "moderator_user_id",
+            command.twitchId()
+          ),
+          new Transport(
+            "webhook",
+            "https://api.oda.digital/twitch/events",
+            "oda-client-secret"
+          )
+        )
+      )
+      .join();
+  }
+
+  private String version(String type) {
+    return switch (type) {
+      case "channel.follow" -> "2";
+      case "channel.subscribe" -> "1";
+      case "channel.subscription.gift" -> "1";
+      case "channel.subscription.message" -> "1";
+      case "channel.raid" -> "1";
+      case "channel.poll.begin" -> "1";
+      case "channel.poll.end" -> "1";
+      case "channel.prediction.begin" -> "1";
+      case "channel.prediction.end" -> "1";
+      case "channel.hype_train.begin" -> "2";
+      case "channel.hype_train.end" -> "2";
+      case "channel.shoutout.create" -> "1";
+      case "channel.shoutout.receive" -> "1";
+      case "stream.online" -> "1";
+      case "stream.offline" -> "1";
+      case "channel.goal.begin" -> "1";
+      case "channel.goal.progress" -> "1";
+      case "channel.goal.end" -> "1";
+      case "user.authorization.revoke" -> "1";
+      default -> "1";
+    };
+  }
+
+  @Serdeable
+  public static record SubcribeTwitchEventsCommand(
+    String token,
+    String twitchId,
+    String event
+  ) {}
+}
