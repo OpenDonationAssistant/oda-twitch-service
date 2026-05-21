@@ -41,7 +41,6 @@ public class Application {
   public ChannelInitializer rabbitConfiguration() {
     return new AMQPConfiguration(
       List.of(
-        Exchange.Exchange("twitch", Map.of("command", CommandListener.QUEUE)),
         Exchange.Exchange(
           "commands",
           Map.of(

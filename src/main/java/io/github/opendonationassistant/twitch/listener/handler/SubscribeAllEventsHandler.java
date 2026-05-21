@@ -1,5 +1,6 @@
 package io.github.opendonationassistant.twitch.listener.handler;
 
+import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.rabbit.RabbitClient;
 import io.github.opendonationassistant.rabbit.TokenRPC;
@@ -11,6 +12,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import java.io.IOException;
+import java.util.Map;
 
 @Singleton
 public class SubscribeAllEventsHandler
@@ -18,6 +20,7 @@ public class SubscribeAllEventsHandler
     SubscribeAllEventsHandler.SubscribeAllTwitchEventsCommand
   > {
 
+  private ODALogger log = new ODALogger(this);
   private final TokenRPC tokenRPC;
   private final RabbitClient rabbit;
   private final TwitchAccountRepository repository;
@@ -65,6 +68,17 @@ public class SubscribeAllEventsHandler
       new TokenRequest(message.recipientId(), message.refreshTokenId())
     );
     if (token == null || token.token() == null) {
+      log.error(
+        "Failed to get token",
+        Map.of(
+          "recipientId",
+          message.recipientId(),
+          "refreshTokenId",
+          message.refreshTokenId(),
+          "token",
+          token
+        )
+      );
       return;
     }
     var twitchId = repository
