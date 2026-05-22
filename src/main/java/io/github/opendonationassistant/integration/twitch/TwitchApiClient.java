@@ -60,6 +60,15 @@ public interface TwitchApiClient {
     @Body SendChatMessageRequest request
   );
 
+  @Post("/helix/chat/shoutouts")
+  CompletableFuture<Void> sendShoutout(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("from_broadcaster_id") String fromBroadcasterId,
+    @QueryValue("to_broadcaster_id") String toBroadcasterId,
+    @QueryValue("moderator_id") String moderatorId
+  );
+
   @Put("/helix/chat/pins")
   CompletableFuture<Void> pinChatMessage(
     @Header("Client-Id") String clientId,

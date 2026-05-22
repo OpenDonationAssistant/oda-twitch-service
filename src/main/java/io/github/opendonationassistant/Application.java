@@ -53,6 +53,8 @@ public class Application {
             "command.UnsubscribeAllTwitchEventsCommand",
             CommandListener.QUEUE,
             "command.SendAndPinChatMessageCommand",
+            CommandListener.QUEUE,
+            "command.TwitchShoutoutCommand",
             CommandListener.QUEUE
           )
         )
