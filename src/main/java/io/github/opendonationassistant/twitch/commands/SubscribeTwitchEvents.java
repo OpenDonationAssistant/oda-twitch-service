@@ -28,41 +28,6 @@ public class SubscribeTwitchEvents extends BaseController {
     this.facade = facade;
   }
 
-  public CompletableFuture<?> byToken(String recipientId, String token) {
-    return idClient
-      .validate("Bearer %s".formatted(token))
-      .thenCompose(response -> {
-        Function<String, CompletableFuture<Void>> subscribe = type ->
-          facade.subscribe(new SubscribeEvent(response.userId(), type));
-        return CompletableFuture.allOf(
-          facade.link(
-            new LinkAccount(recipientId, response.userId(), response.login())
-          ),
-          subscribe.apply("channel.follow"),
-          subscribe.apply("channel.ban"),
-          subscribe.apply("channel.subscribe"),
-          subscribe.apply("channel.subscription.gift"),
-          subscribe.apply("channel.subscription.message"),
-          subscribe.apply("channel.cheer"),
-          subscribe.apply("channel.raid"),
-          subscribe.apply("channel.poll.begin"),
-          subscribe.apply("channel.poll.end"),
-          subscribe.apply("channel.prediction.begin"),
-          subscribe.apply("channel.prediction.end"),
-          subscribe.apply("channel.hype_train.begin"),
-          subscribe.apply("channel.hype_train.end"),
-          subscribe.apply("channel.shoutout.create"),
-          subscribe.apply("channel.shoutout.receive"),
-          subscribe.apply("stream.online"),
-          subscribe.apply("stream.offline"),
-          subscribe.apply("channel.goal.begin"),
-          subscribe.apply("channel.goal.progress"),
-          subscribe.apply("channel.goal.end"),
-          subscribe.apply("user.authorization.revoke")
-        );
-      });
-  }
-
   @Controller
   public static class HttpWrapper extends BaseController {
 
@@ -83,11 +48,7 @@ public class SubscribeTwitchEvents extends BaseController {
       if (recipientId.isEmpty()) {
         return CompletableFuture.completedFuture(HttpResponse.unauthorized());
       }
-      return subscribe
-        .byToken(recipientId.get(), command.userAccessToken())
-        .thenApply(response -> {
-          return HttpResponse.ok();
-        });
+      return CompletableFuture.completedFuture(HttpResponse.ok());
     }
   }
 

@@ -2,12 +2,14 @@ package io.github.opendonationassistant.twitch.listener.handler;
 
 import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
+import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
 import io.github.opendonationassistant.rabbit.RabbitClient;
 import io.github.opendonationassistant.rabbit.TokenRPC;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
 import io.github.opendonationassistant.twitch.listener.handler.SubscribeEventsHandler.SubcribeTwitchEventsCommand;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
+import io.micronaut.context.annotation.Value;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Named;
@@ -22,9 +24,11 @@ public class SubscribeAllEventsHandler
   > {
 
   private ODALogger log = new ODALogger(this);
-  private final TokenRPC tokenRPC;
   private final RabbitClient rabbit;
   private final TwitchAccountRepository repository;
+  private final TwitchIdClient twitchIdClient;
+  private final String clientId;
+  private final String clientSecret;
 
   private final java.util.List<String> events = java.util.List.of(
     "channel.follow",
@@ -52,37 +56,54 @@ public class SubscribeAllEventsHandler
 
   public SubscribeAllEventsHandler(
     ObjectMapper mapper,
-    TokenRPC tokenRPC,
+    TwitchIdClient twitchIdClient,
     @Named("commands") RabbitClient rabbit,
-    TwitchAccountRepository repository
+    TwitchAccountRepository repository,
+    @Value("${twitch.client.id}") String clientId,
+    @Value("${twitch.client.secret}") String clientSecret
   ) {
     super(mapper);
-    this.tokenRPC = tokenRPC;
+    this.twitchIdClient = twitchIdClient;
     this.rabbit = rabbit;
     this.repository = repository;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
   }
 
   @Override
   public void handle(SubscribeAllTwitchEventsCommand message)
     throws IOException {
-    var token = tokenRPC.token(
-      new TokenRequest(message.recipientId(), message.refreshTokenId())
-    );
-    if (token == null || token.token() == null) {
-      log.error(
-        "Failed to get token",
+    // var token = tokenRPC.token(
+    //   new TokenRequest(message.recipientId(), message.refreshTokenId())
+    // );
+    // if (token == null || token.token() == null) {
+    //   log.error(
+    //     "Failed to get token",
+    //     Map.of(
+    //       "recipientId",
+    //       message.recipientId(),
+    //       "refreshTokenId",
+    //       message.refreshTokenId(),
+    //       "token",
+    //       token
+    //     )
+    //   );
+    //   return;
+    // }
+    // var accessToken = token.token();
+    var appToken = twitchIdClient
+      .getToken(
         Map.of(
-          "recipientId",
-          message.recipientId(),
-          "refreshTokenId",
-          message.refreshTokenId(),
-          "token",
-          token
+          "client_id",
+          clientId,
+          "client_secret",
+          clientSecret,
+          "grant_type",
+          "client_credentials"
         )
-      );
-      return;
-    }
-    var accessToken = token.token();
+      )
+      .join()
+      .accessToken();
     var twitchId = repository
       .findByRecipientId(message.recipientId())
       .map(TwitchAccountData::twitchId);
@@ -90,7 +111,7 @@ public class SubscribeAllEventsHandler
       id ->
         events.forEach(event -> {
           rabbit.sendCommand(
-            new SubcribeTwitchEventsCommand(accessToken, id, event)
+            new SubcribeTwitchEventsCommand(appToken, id, event)
           );
         }),
       () ->
