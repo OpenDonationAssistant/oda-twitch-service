@@ -6,6 +6,7 @@ import io.github.opendonationassistant.rabbit.RabbitClient;
 import io.github.opendonationassistant.rabbit.TokenRPC;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
 import io.github.opendonationassistant.twitch.listener.handler.SubscribeEventsHandler.SubcribeTwitchEventsCommand;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
@@ -83,13 +84,20 @@ public class SubscribeAllEventsHandler
     }
     var twitchId = repository
       .findByRecipientId(message.recipientId())
-      .get()
-      .twitchId();
-    events.forEach(event -> {
-      rabbit.sendCommand(
-        new SubcribeTwitchEventsCommand(token.token(), twitchId, event)
-      );
-    });
+      .map(TwitchAccountData::twitchId);
+    twitchId.ifPresentOrElse(
+      id ->
+        events.forEach(event -> {
+          rabbit.sendCommand(
+            new SubcribeTwitchEventsCommand(token.token(), id, event)
+          );
+        }),
+      () ->
+        log.error(
+          "Can't find twitch id",
+          Map.of("recipientId", message.recipientId())
+        )
+    );
   }
 
   @Serdeable
