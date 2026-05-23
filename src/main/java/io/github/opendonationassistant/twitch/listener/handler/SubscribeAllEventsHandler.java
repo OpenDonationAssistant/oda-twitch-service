@@ -82,6 +82,7 @@ public class SubscribeAllEventsHandler
       );
       return;
     }
+    var accessToken = token.token();
     var twitchId = repository
       .findByRecipientId(message.recipientId())
       .map(TwitchAccountData::twitchId);
@@ -89,7 +90,7 @@ public class SubscribeAllEventsHandler
       id ->
         events.forEach(event -> {
           rabbit.sendCommand(
-            new SubcribeTwitchEventsCommand(token.token(), id, event)
+            new SubcribeTwitchEventsCommand(accessToken, id, event)
           );
         }),
       () ->
