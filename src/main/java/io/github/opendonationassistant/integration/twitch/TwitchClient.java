@@ -75,7 +75,7 @@ public class TwitchClient {
     return api.getSubscriptions(clientId, auth);
   }
 
-  public CompletableFuture<SubscribeResponse> deleteSubscription(
+  public CompletableFuture<Void> deleteSubscription(
     String auth,
     @Nullable String status,
     @Nullable String id
