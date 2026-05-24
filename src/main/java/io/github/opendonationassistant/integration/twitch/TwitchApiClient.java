@@ -31,7 +31,7 @@ public interface TwitchApiClient {
   );
 
   @Delete("/helix/eventsub/subscriptions")
-  public CompletableFuture<SubscribeResponse> deleteSubscription(
+  public CompletableFuture<Void> deleteSubscription(
     @Header("Client-Id") String clientId,
     @Header("Authorization") String auth,
     @Nullable @QueryValue("status") String status,

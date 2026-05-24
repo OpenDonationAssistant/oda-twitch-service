@@ -39,7 +39,10 @@ public class UnsubscribeAllTwitchEventsHandler
     var token = twitch.getAppToken().join().accessToken();
     var auth = "Bearer %s".formatted(token);
     webhookRepository
-      .findByRecipientIdAndRefreshTokenId(message.recipientId(), message.refreshTokenId())
+      .findByRecipientIdAndRefreshTokenId(
+        message.recipientId(),
+        message.refreshTokenId()
+      )
       .ifPresent(webhook -> {
         CompletableFuture.allOf(
           webhook
