@@ -68,20 +68,38 @@ public class SubscribeEventsHandler
       )
       .join();
     var subscriptionId = response.data()[0].id();
-    var existing = webhookRepository.findById(command.recipientId());
-    var ids = new ArrayList<>(
-      existing.map(TwitchWebhook::subscriptionIds).orElseGet(List::of)
-    );
-    ids.add(subscriptionId);
-    webhookRepository.save(
-      new TwitchWebhook(
-        Generators.timeBasedEpochGenerator().generate().toString(),
+    webhookRepository
+      .findByRecipientIdAndRefreshTokenId(
         command.recipientId(),
-        command.twitchId(),
-        command.refreshTokenId(),
-        ids
+        command.refreshTokenId()
       )
-    );
+      .ifPresentOrElse(
+        existing -> {
+          var ids = new ArrayList<String>();
+          ids.addAll(existing.subscriptionIds());
+          ids.add(subscriptionId);
+          webhookRepository.update(
+            new TwitchWebhook(
+              existing.id(),
+              command.recipientId(),
+              command.twitchId(),
+              command.refreshTokenId(),
+              ids
+            )
+          );
+        },
+        () -> {
+          webhookRepository.save(
+            new TwitchWebhook(
+              Generators.timeBasedEpochGenerator().generate().toString(),
+              command.recipientId(),
+              command.twitchId(),
+              command.refreshTokenId(),
+              List.of()
+            )
+          );
+        }
+      );
   }
 
   private String version(String type) {
