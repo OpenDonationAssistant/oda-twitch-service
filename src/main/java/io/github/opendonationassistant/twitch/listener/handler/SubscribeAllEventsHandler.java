@@ -31,27 +31,27 @@ public class SubscribeAllEventsHandler
   private final String clientSecret;
 
   private final java.util.List<String> events = java.util.List.of(
-    "channel.follow",
-    "channel.ban",
-    "channel.subscribe",
-    "channel.subscription.gift",
-    "channel.subscription.message",
-    "channel.cheer",
-    "channel.raid",
-    "channel.poll.begin",
-    "channel.poll.end",
-    "channel.prediction.begin",
-    "channel.prediction.end",
-    "channel.hype_train.begin",
-    "channel.hype_train.end",
-    "channel.shoutout.create",
-    "channel.shoutout.receive",
-    "stream.online",
-    "stream.offline",
-    "channel.goal.begin",
-    "channel.goal.progress",
-    "channel.goal.end",
-    "user.authorization.revoke"
+    "channel.follow"
+    // "channel.ban",
+    // "channel.subscribe",
+    // "channel.subscription.gift",
+    // "channel.subscription.message",
+    // "channel.cheer",
+    // "channel.raid",
+    // "channel.poll.begin",
+    // "channel.poll.end",
+    // "channel.prediction.begin",
+    // "channel.prediction.end",
+    // "channel.hype_train.begin",
+    // "channel.hype_train.end",
+    // "channel.shoutout.create",
+    // "channel.shoutout.receive",
+    // "stream.online",
+    // "stream.offline",
+    // "channel.goal.begin",
+    // "channel.goal.progress",
+    // "channel.goal.end",
+    // "user.authorization.revoke"
   );
 
   public SubscribeAllEventsHandler(
