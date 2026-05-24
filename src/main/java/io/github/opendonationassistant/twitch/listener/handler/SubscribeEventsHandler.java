@@ -26,7 +26,6 @@ public class SubscribeEventsHandler
 
   private final TwitchApiClient apiClient;
   private final String clientId;
-  private final TwitchAccountRepository accountRepository;
   private final TwitchWebhookRepository webhookRepository;
 
   @Inject
@@ -40,7 +39,6 @@ public class SubscribeEventsHandler
     super(mapper);
     this.apiClient = apiClient;
     this.clientId = clientId;
-    this.accountRepository = accountRepository;
     this.webhookRepository = webhookRepository;
   }
 
@@ -95,7 +93,7 @@ public class SubscribeEventsHandler
               command.recipientId(),
               command.twitchId(),
               command.refreshTokenId(),
-              List.of()
+              List.of(subscriptionId)
             )
           );
         }
