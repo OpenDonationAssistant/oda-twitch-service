@@ -48,7 +48,7 @@ public class UnsubscribeAllTwitchEventsHandler
             .map(id -> twitch.deleteSubscription(auth, ANY_STATUS, id))
             .toArray(CompletableFuture[]::new)
         ).join();
-        webhookRepository.save(
+        webhookRepository.update(
           new TwitchWebhook(
             webhook.id(),
             webhook.recipientId(),
