@@ -97,8 +97,8 @@ public class SubscribeAllEventsHandler
               appToken,
               message.recipientId(),
               id,
-              event,
-              message.refreshTokenId()
+              message.refreshTokenId(),
+              event
             )
           );
         }),
