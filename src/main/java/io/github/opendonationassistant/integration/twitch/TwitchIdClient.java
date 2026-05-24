@@ -10,6 +10,8 @@ import io.micronaut.serde.annotation.Serdeable;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.jspecify.annotations.Nullable;
+
 @Client("twitch-id")
 public interface TwitchIdClient {
   @Post(
@@ -29,7 +31,7 @@ public interface TwitchIdClient {
   @Serdeable
   public static record GetAccessRecordResponse(
     @JsonProperty("access_token") String accessToken,
-    @JsonProperty("refresh_token") String refreshToken
+    @Nullable @JsonProperty("refresh_token") String refreshToken
   ) {}
 
   @Serdeable

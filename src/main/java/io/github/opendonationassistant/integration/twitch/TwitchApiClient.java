@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 @Client("twitch-api")
 public interface TwitchApiClient {
   @Post("/helix/eventsub/subscriptions")
-  public CompletableFuture<SubscribeResponse> subscribe(
+  public CompletableFuture<DataWrapper<Subscription[]>> subscribe(
     @Header("Client-Id") String clientId,
     @Header("Authorization") String auth,
     @Body SubscribeRequest request

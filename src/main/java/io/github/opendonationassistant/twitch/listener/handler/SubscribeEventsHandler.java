@@ -4,12 +4,17 @@ import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Transport;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
+import io.github.opendonationassistant.twitch.repository.TwitchWebhook;
+import io.github.opendonationassistant.twitch.repository.TwitchWebhookRepository;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Singleton
@@ -20,41 +25,63 @@ public class SubscribeEventsHandler
 
   private final TwitchApiClient apiClient;
   private final String clientId;
+  private final TwitchAccountRepository accountRepository;
+  private final TwitchWebhookRepository webhookRepository;
 
   @Inject
   public SubscribeEventsHandler(
     ObjectMapper mapper,
     TwitchApiClient apiClient,
+    TwitchAccountRepository accountRepository,
+    TwitchWebhookRepository webhookRepository,
     @Value("${twitch.client.id}") String clientId
   ) {
     super(mapper);
     this.apiClient = apiClient;
     this.clientId = clientId;
+    this.accountRepository = accountRepository;
+    this.webhookRepository = webhookRepository;
   }
 
   @Override
   public void handle(SubcribeTwitchEventsCommand command) throws IOException {
-    apiClient
-      .subscribe(
-        clientId,
-        "Bearer %s".formatted(command.token()),
-        new SubscribeRequest(
-          command.event(),
-          version(command.event()),
-          Map.of(
-            "broadcaster_user_id",
-            command.twitchId(),
-            "moderator_user_id",
-            command.twitchId()
-          ),
-          new Transport(
-            "webhook",
-            "https://api.oda.digital/twitch/events",
-            "oda-client-secret"
+    var response =
+      apiClient
+        .subscribe(
+          clientId,
+          "Bearer %s".formatted(command.token()),
+          new SubscribeRequest(
+            command.event(),
+            version(command.event()),
+            Map.of(
+              "broadcaster_user_id",
+              command.twitchId(),
+              "moderator_user_id",
+              command.twitchId()
+            ),
+            new Transport(
+              "webhook",
+              "https://api.oda.digital/twitch/events",
+              "oda-client-secret"
+            )
           )
         )
-      )
-      .join();
+        .join();
+    var subscriptionId = response.data()[0].id();
+    accountRepository
+      .findByTwitchId(command.twitchId())
+      .ifPresent(account -> {
+        var recipientId = account.recipientId();
+        var existing = webhookRepository.findById(recipientId);
+        var ids =
+          new ArrayList<>(
+            existing.map(TwitchWebhook::subscriptionIds).orElseGet(List::of)
+          );
+        ids.add(subscriptionId);
+        webhookRepository.save(
+          new TwitchWebhook(recipientId, command.twitchId(), ids)
+        );
+      });
   }
 
   private String version(String type) {
