@@ -5,6 +5,7 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Header;
+import io.micronaut.http.annotation.Patch;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
 import io.micronaut.http.annotation.QueryValue;
@@ -79,6 +80,31 @@ public interface TwitchApiClient {
     @Nullable @QueryValue("duration_seconds") Integer durationSeconds
   );
 
+  @Post("/helix/channel_points/custom_rewards")
+  CompletableFuture<DataWrapper<List<CustomReward>>> createCustomReward(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("broadcaster_id") String broadcasterId,
+    @Body CreateCustomRewardRequest request
+  );
+
+  @Patch("/helix/channel_points/custom_rewards")
+  CompletableFuture<DataWrapper<List<CustomReward>>> updateCustomReward(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("broadcaster_id") String broadcasterId,
+    @QueryValue("id") String id,
+    @Body UpdateCustomRewardRequest request
+  );
+
+  @Delete("/helix/channel_points/custom_rewards")
+  CompletableFuture<Void> deleteCustomReward(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("broadcaster_id") String broadcasterId,
+    @QueryValue("id") String id
+  );
+
   @Serdeable
   public static record SubscribeRequest(
     String type,
@@ -132,5 +158,62 @@ public interface TwitchApiClient {
   public static record SendChatMessageResponse(
     @JsonProperty("message_id") String messageId,
     @JsonProperty("is_sent") boolean isSent
+  ) {}
+
+  @Serdeable
+  public static record CustomReward(
+    String id,
+    @JsonProperty("broadcaster_id") String broadcasterId,
+    @JsonProperty("broadcaster_login") String broadcasterLogin,
+    @JsonProperty("broadcaster_name") String broadcasterName,
+    String title,
+    Integer cost,
+    @JsonProperty("is_enabled") Boolean isEnabled,
+    @JsonProperty("is_paused") Boolean isPaused,
+    @JsonProperty("is_in_stock") Boolean isInStock,
+    @JsonProperty("should_redemptions_skip_request_queue")
+      Boolean shouldRedemptionsSkipRequestQueue,
+    @Nullable String prompt,
+    @JsonProperty("is_user_input_required") Boolean isUserInputRequired,
+    @JsonProperty("background_color") String backgroundColor
+  ) {}
+
+  @Serdeable
+  public static record CreateCustomRewardRequest(
+    String title,
+    Integer cost,
+    @Nullable String prompt,
+    @Nullable @JsonProperty("is_enabled") Boolean isEnabled,
+    @Nullable @JsonProperty("background_color") String backgroundColor,
+    @Nullable @JsonProperty("is_user_input_required") Boolean isUserInputRequired,
+    @Nullable @JsonProperty("is_max_per_stream_enabled") Boolean isMaxPerStreamEnabled,
+    @Nullable @JsonProperty("max_per_stream") Integer maxPerStream,
+    @Nullable @JsonProperty("is_max_per_user_per_stream_enabled")
+      Boolean isMaxPerUserPerStreamEnabled,
+    @Nullable @JsonProperty("max_per_user_per_stream") Integer maxPerUserPerStream,
+    @Nullable @JsonProperty("is_global_cooldown_enabled") Boolean isGlobalCooldownEnabled,
+    @Nullable @JsonProperty("global_cooldown_seconds") Integer globalCooldownSeconds,
+    @Nullable @JsonProperty("should_redemptions_skip_request_queue")
+      Boolean shouldRedemptionsSkipRequestQueue
+  ) {}
+
+  @Serdeable
+  public static record UpdateCustomRewardRequest(
+    @Nullable String title,
+    @Nullable Integer cost,
+    @Nullable String prompt,
+    @Nullable @JsonProperty("is_enabled") Boolean isEnabled,
+    @Nullable @JsonProperty("background_color") String backgroundColor,
+    @Nullable @JsonProperty("is_user_input_required") Boolean isUserInputRequired,
+    @Nullable @JsonProperty("is_max_per_stream_enabled") Boolean isMaxPerStreamEnabled,
+    @Nullable @JsonProperty("max_per_stream") Integer maxPerStream,
+    @Nullable @JsonProperty("is_max_per_user_per_stream_enabled")
+      Boolean isMaxPerUserPerStreamEnabled,
+    @Nullable @JsonProperty("max_per_user_per_stream") Integer maxPerUserPerStream,
+    @Nullable @JsonProperty("is_global_cooldown_enabled") Boolean isGlobalCooldownEnabled,
+    @Nullable @JsonProperty("global_cooldown_seconds") Integer globalCooldownSeconds,
+    @Nullable @JsonProperty("should_redemptions_skip_request_queue")
+      Boolean shouldRedemptionsSkipRequestQueue,
+    @Nullable @JsonProperty("is_paused") Boolean isPaused
   ) {}
 }

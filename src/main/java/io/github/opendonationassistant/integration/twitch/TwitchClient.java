@@ -1,13 +1,15 @@
 package io.github.opendonationassistant.integration.twitch;
 
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.CreateCustomRewardRequest;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.CustomReward;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.DataWrapper;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.GetUserResponse;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageResponse;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Stream;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
-import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeResponse;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Subscription;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateCustomRewardRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.ValidationResponse;
 import io.micronaut.context.annotation.Value;
@@ -134,5 +136,30 @@ public class TwitchClient {
       messageId,
       durationSeconds
     );
+  }
+
+  public CompletableFuture<DataWrapper<List<CustomReward>>> createCustomReward(
+    String auth,
+    String broadcasterId,
+    CreateCustomRewardRequest request
+  ) {
+    return api.createCustomReward(clientId, auth, broadcasterId, request);
+  }
+
+  public CompletableFuture<DataWrapper<List<CustomReward>>> updateCustomReward(
+    String auth,
+    String broadcasterId,
+    String id,
+    UpdateCustomRewardRequest request
+  ) {
+    return api.updateCustomReward(clientId, auth, broadcasterId, id, request);
+  }
+
+  public CompletableFuture<Void> deleteCustomReward(
+    String auth,
+    String broadcasterId,
+    String id
+  ) {
+    return api.deleteCustomReward(clientId, auth, broadcasterId, id);
   }
 }
