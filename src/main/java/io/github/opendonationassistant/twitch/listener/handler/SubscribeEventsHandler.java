@@ -1,5 +1,6 @@
 package io.github.opendonationassistant.twitch.listener.handler;
 
+import com.fasterxml.uuid.Generators;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
@@ -45,43 +46,42 @@ public class SubscribeEventsHandler
 
   @Override
   public void handle(SubcribeTwitchEventsCommand command) throws IOException {
-    var response =
-      apiClient
-        .subscribe(
-          clientId,
-          "Bearer %s".formatted(command.token()),
-          new SubscribeRequest(
-            command.event(),
-            version(command.event()),
-            Map.of(
-              "broadcaster_user_id",
-              command.twitchId(),
-              "moderator_user_id",
-              command.twitchId()
-            ),
-            new Transport(
-              "webhook",
-              "https://api.oda.digital/twitch/events",
-              "oda-client-secret"
-            )
+    var response = apiClient
+      .subscribe(
+        clientId,
+        "Bearer %s".formatted(command.token()),
+        new SubscribeRequest(
+          command.event(),
+          version(command.event()),
+          Map.of(
+            "broadcaster_user_id",
+            command.twitchId(),
+            "moderator_user_id",
+            command.twitchId()
+          ),
+          new Transport(
+            "webhook",
+            "https://api.oda.digital/twitch/events",
+            "oda-client-secret"
           )
         )
-        .join();
+      )
+      .join();
     var subscriptionId = response.data()[0].id();
-    accountRepository
-      .findByTwitchId(command.twitchId())
-      .ifPresent(account -> {
-        var recipientId = account.recipientId();
-        var existing = webhookRepository.findById(recipientId);
-        var ids =
-          new ArrayList<>(
-            existing.map(TwitchWebhook::subscriptionIds).orElseGet(List::of)
-          );
-        ids.add(subscriptionId);
-        webhookRepository.save(
-          new TwitchWebhook(recipientId, command.twitchId(), ids)
-        );
-      });
+    var existing = webhookRepository.findById(command.recipientId());
+    var ids = new ArrayList<>(
+      existing.map(TwitchWebhook::subscriptionIds).orElseGet(List::of)
+    );
+    ids.add(subscriptionId);
+    webhookRepository.save(
+      new TwitchWebhook(
+        Generators.timeBasedEpochGenerator().generate().toString(),
+        command.recipientId(),
+        command.twitchId(),
+        command.refreshTokenId(),
+        ids
+      )
+    );
   }
 
   private String version(String type) {
@@ -112,7 +112,9 @@ public class SubscribeEventsHandler
   @Serdeable
   public static record SubcribeTwitchEventsCommand(
     String token,
+    String recipientId,
     String twitchId,
+    String refreshTokenId,
     String event
   ) {}
 }

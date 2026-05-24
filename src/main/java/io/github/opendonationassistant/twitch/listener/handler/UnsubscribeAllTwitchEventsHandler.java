@@ -50,8 +50,10 @@ public class UnsubscribeAllTwitchEventsHandler
         ).join();
         webhookRepository.save(
           new TwitchWebhook(
+            webhook.id(),
             webhook.recipientId(),
             webhook.twitchId(),
+            webhook.refreshTokenId(),
             List.of()
           )
         );

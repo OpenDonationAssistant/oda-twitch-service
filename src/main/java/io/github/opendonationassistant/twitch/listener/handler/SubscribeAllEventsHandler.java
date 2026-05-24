@@ -73,24 +73,6 @@ public class SubscribeAllEventsHandler
   @Override
   public void handle(SubscribeAllTwitchEventsCommand message)
     throws IOException {
-    // var token = tokenRPC.token(
-    //   new TokenRequest(message.recipientId(), message.refreshTokenId())
-    // );
-    // if (token == null || token.token() == null) {
-    //   log.error(
-    //     "Failed to get token",
-    //     Map.of(
-    //       "recipientId",
-    //       message.recipientId(),
-    //       "refreshTokenId",
-    //       message.refreshTokenId(),
-    //       "token",
-    //       token
-    //     )
-    //   );
-    //   return;
-    // }
-    // var accessToken = token.token();
     var appToken = twitchIdClient
       .getToken(
         Map.of(
@@ -111,7 +93,13 @@ public class SubscribeAllEventsHandler
       id ->
         events.forEach(event -> {
           rabbit.sendCommand(
-            new SubcribeTwitchEventsCommand(appToken, id, event)
+            new SubcribeTwitchEventsCommand(
+              appToken,
+              message.recipientId(),
+              id,
+              event,
+              message.refreshTokenId()
+            )
           );
         }),
       () ->

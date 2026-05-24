@@ -10,8 +10,10 @@ import java.util.List;
 @Serdeable
 @MappedEntity("twitch_webhooks")
 public record TwitchWebhook(
-  @Id @MappedProperty("recipient_id") String recipientId,
+  @Id @MappedProperty(value = "id", type = DataType.UUID) String id,
+  @MappedProperty("recipient_id") String recipientId,
   @MappedProperty("twitch_id") String twitchId,
+  @MappedProperty("refresh_token_id") String refreshTokenId,
   @MappedProperty(value = "subscription_ids", type = DataType.STRING_ARRAY)
   List<String> subscriptionIds
 ) {}
