@@ -36,8 +36,6 @@ public class UnsubscribeAllTwitchEventsHandler
   @Override
   public void handle(UnsubscribeAllTwitchEventsCommand message)
     throws IOException {
-    var token = twitch.getAppToken().join().accessToken();
-    var auth = "Bearer %s".formatted(token);
     webhookRepository
       .findByRecipientIdAndRefreshTokenId(
         message.recipientId(),
@@ -48,7 +46,7 @@ public class UnsubscribeAllTwitchEventsHandler
           webhook
             .subscriptionIds()
             .stream()
-            .map(id -> twitch.deleteSubscription(auth, ANY_STATUS, id))
+            .map(id -> twitch.deleteSubscription(ANY_STATUS, id))
             .toArray(CompletableFuture[]::new)
         ).join();
         webhookRepository.update(
