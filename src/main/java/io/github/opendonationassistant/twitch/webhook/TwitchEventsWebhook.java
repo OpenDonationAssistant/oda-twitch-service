@@ -15,8 +15,10 @@ import io.github.opendonationassistant.events.twitch.events.TwitchUserBannedEven
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
+import io.github.opendonationassistant.rabbit.RabbitClient;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.context.annotation.Value;
+import jakarta.inject.Named;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -47,6 +49,7 @@ public class TwitchEventsWebhook {
   private final String clientSecret;
   private final TwitchIdClient idClient;
   private final TwitchApiClient api;
+  private final RabbitClient rabbit;
 
   @Inject
   public TwitchEventsWebhook(
@@ -55,7 +58,8 @@ public class TwitchEventsWebhook {
     @Value("${twitch.client.id}") String clientId,
     @Value("${twitch.client.secret}") String clientSecret,
     TwitchIdClient idClient,
-    TwitchApiClient api
+    TwitchApiClient api,
+    @Named("commands") RabbitClient rabbit
   ) {
     this.facade = facade;
     this.repository = repository;
@@ -63,6 +67,7 @@ public class TwitchEventsWebhook {
     this.clientSecret = clientSecret;
     this.idClient = idClient;
     this.api = api;
+    this.rabbit = rabbit;
   }
 
   @Post("/twitch/events")
@@ -195,6 +200,16 @@ public class TwitchEventsWebhook {
                 return facade.sendEvent(
                   new TwitchStreamEndedEvent(id, account.recipientId())
                 );
+              case "channel.channel_points_custom_reward_redemption.add":
+                rabbit.sendCommand(
+                  new AddMediaCommand(
+                    event.map(TwitchEventsWebhook.Event::userInput).orElse(""),
+                    username,
+                    account.recipientId(),
+                    "twitch"
+                  )
+                );
+                return CompletableFuture.completedFuture(HttpResponse.ok(""));
               default:
                 return CompletableFuture.completedFuture(null);
             }
@@ -251,6 +266,24 @@ public class TwitchEventsWebhook {
     @Nullable @JsonProperty("total") Integer total,
     @Nullable @JsonProperty("cumulative_total") Integer cumulativeTotal,
     @Nullable @JsonProperty("streak_months") Integer streakMonths,
-    @Nullable @JsonProperty("duration_months") Integer durationMonths
+    @Nullable @JsonProperty("duration_months") Integer durationMonths,
+    @Nullable @JsonProperty("user_input") String userInput,
+    @Nullable @JsonProperty("reward") Reward reward
+  ) {}
+
+  @Serdeable
+  public static record Reward(
+    String id,
+    String title,
+    Integer cost,
+    @Nullable String prompt
+  ) {}
+
+  @Serdeable
+  public static record AddMediaCommand(
+    String url,
+    String requester,
+    String recipientId,
+    String system
   ) {}
 }
