@@ -13,5 +13,6 @@ public record TwitchRewardData(
   @MappedProperty("recipient_id") String recipientId,
   @MappedProperty(value = "refresh_token_id", type = DataType.UUID)
   String refreshTokenId,
-  @MappedProperty("type") String type
+  @MappedProperty("type") String type,
+  @MappedProperty("cost") Integer cost
 ) {}

@@ -3,6 +3,9 @@ package io.github.opendonationassistant.twitch.listener.handler;
 import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
+import io.github.opendonationassistant.integration.twitch.TwitchClient;
+import io.github.opendonationassistant.rabbit.TokenRPC;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardData;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardDataRepository;
@@ -22,16 +25,22 @@ public class WidgetChangedEventHandler
     Generators.timeBasedEpochGenerator();
   private final TwitchRewardDataRepository rewardRepository;
   private final TwitchAccountRepository accountRepository;
+  private final TwitchClient twitch;
+  private final TokenRPC token;
 
   @Inject
   public WidgetChangedEventHandler(
     ObjectMapper mapper,
     TwitchRewardDataRepository rewardRepository,
-    TwitchAccountRepository accountRepository
+    TwitchAccountRepository accountRepository,
+    TwitchClient twitch,
+    TokenRPC token
   ) {
     super(mapper);
     this.rewardRepository = rewardRepository;
     this.accountRepository = accountRepository;
+    this.twitch = twitch;
+    this.token = token;
   }
 
   @Override
@@ -91,13 +100,47 @@ public class WidgetChangedEventHandler
     if (title == null) {
       return;
     }
-    var cost = findIntProperty(properties, "music-" + system + "-request-cost");
+    Integer cost = findIntProperty(
+      properties,
+      "music-" + system + "-request-cost"
+    );
+    if (cost == null) {
+      return;
+    }
+
+    var accessToken = token
+      .token(new TokenRPC.TokenRequest(recipientId, refreshTokenId))
+      .token();
+
+    new TwitchApiClient.CreateCustomRewardRequest(
+      title,
+      cost,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    );
+
+    // twitch.createCustomReward(
+    //   recipientId,
+    //   system,
+    //   title,
+    //   cost
+    // )
 
     var reward = new TwitchRewardData(
       uuid.generate().toString(),
       recipientId,
       refreshTokenId,
-      system
+      system,
+      cost
     );
     rewardRepository.save(reward);
   }
