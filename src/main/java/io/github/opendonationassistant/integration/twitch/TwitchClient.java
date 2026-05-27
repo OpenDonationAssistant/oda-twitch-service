@@ -14,6 +14,7 @@ import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAcce
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.ValidationResponse;
 import io.github.opendonationassistant.rabbit.TokenRPC;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -31,12 +32,14 @@ public class TwitchClient {
   private final String clientId;
   private final String clientSecret;
   private final TokenRPC tokenRPC;
+  private final TwitchAccountRepository accountRepository;
 
   @Inject
   public TwitchClient(
     TwitchApiClient api,
     TwitchIdClient id,
     TokenRPC tokenRPC,
+    TwitchAccountRepository accountRepository,
     @Value("${twitch.client.id}") String clientId,
     @Value("${twitch.client.secret}") String clientSecret
   ) {
@@ -45,6 +48,7 @@ public class TwitchClient {
     this.tokenRPC = tokenRPC;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
+    this.accountRepository = accountRepository;
   }
 
   public CompletableFuture<GetAccessRecordResponse> getToken(
@@ -201,19 +205,29 @@ public class TwitchClient {
   public CompletableFuture<DataWrapper<List<CustomReward>>> createCustomReward(
     String recipientId,
     String refreshTokenId,
-    String broadcasterId,
     CreateCustomRewardRequest request
   ) {
-    var token = tokenRPC.token(new TokenRequest(recipientId, refreshTokenId));
-    if (token == null || token.token() == null) {
-      return CompletableFuture.completedFuture(null);
-    }
-    return api.createCustomReward(
-      clientId,
-      "Bearer %s".formatted(token.token()),
-      broadcasterId,
-      request
-    );
+    return accountRepository
+      .findByRecipientId(recipientId)
+      .map(account -> {
+        var token = tokenRPC.token(
+          new TokenRequest(recipientId, refreshTokenId)
+        );
+        if (token == null || token.token() == null) {
+          return CompletableFuture.<
+              DataWrapper<List<CustomReward>>
+            >completedFuture(null);
+        }
+        return api.createCustomReward(
+          clientId,
+          "Bearer %s".formatted(token.token()),
+          account.twitchId(),
+          request
+        );
+      })
+      .orElseGet(() ->
+        CompletableFuture.completedFuture(new DataWrapper(List.of()))
+      );
   }
 
   public CompletableFuture<DataWrapper<List<CustomReward>>> updateCustomReward(

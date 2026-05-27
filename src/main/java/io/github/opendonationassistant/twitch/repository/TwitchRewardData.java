@@ -7,12 +7,12 @@ import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
-@MappedEntity("twitch_rewards")
+@MappedEntity("reward")
 public record TwitchRewardData(
   @Id @MappedProperty(value = "id", type = DataType.UUID) String id,
-  @MappedProperty("recipient_id") String recipientId,
+  @MappedProperty(value = "recipient_id", type = DataType.UUID)
+  String recipientId,
   @MappedProperty(value = "refresh_token_id", type = DataType.UUID)
   String refreshTokenId,
-  @MappedProperty("type") String type,
-  @MappedProperty("cost") Integer cost
+  @MappedProperty("type") String type
 ) {}

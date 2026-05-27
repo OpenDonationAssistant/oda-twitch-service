@@ -2,10 +2,10 @@ package io.github.opendonationassistant.twitch.listener.handler;
 
 import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
+import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
-import io.github.opendonationassistant.rabbit.TokenRPC;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardData;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardDataRepository;
@@ -21,26 +21,26 @@ import org.jspecify.annotations.Nullable;
 public class WidgetChangedEventHandler
   extends AbstractMessageHandler<WidgetChangedEventHandler.WidgetChangedEvent> {
 
+  private ODALogger log = new ODALogger(this);
+  private static final String WIDGET_TYPE = "media";
+
   private final TimeBasedEpochGenerator uuid =
     Generators.timeBasedEpochGenerator();
   private final TwitchRewardDataRepository rewardRepository;
   private final TwitchAccountRepository accountRepository;
   private final TwitchClient twitch;
-  private final TokenRPC token;
 
   @Inject
   public WidgetChangedEventHandler(
     ObjectMapper mapper,
     TwitchRewardDataRepository rewardRepository,
     TwitchAccountRepository accountRepository,
-    TwitchClient twitch,
-    TokenRPC token
+    TwitchClient twitch
   ) {
     super(mapper);
     this.rewardRepository = rewardRepository;
     this.accountRepository = accountRepository;
     this.twitch = twitch;
-    this.token = token;
   }
 
   @Override
@@ -49,7 +49,15 @@ public class WidgetChangedEventHandler
       return;
     }
 
-    var config = event.widget().config();
+    var widget = event.widget();
+    if (widget == null) {
+      return;
+    }
+    if (!WIDGET_TYPE.equals(widget.type())) {
+      return;
+    }
+
+    var config = widget.config();
     if (config == null) {
       return;
     }
@@ -59,7 +67,7 @@ public class WidgetChangedEventHandler
       return;
     }
 
-    var ownerId = event.widget().ownerId();
+    var ownerId = widget.ownerId();
     if (ownerId == null) {
       return;
     }
@@ -72,7 +80,7 @@ public class WidgetChangedEventHandler
     var refreshTokenId = account.get().refreshTokenId();
     var recipientId = ownerId;
 
-    rewardRepository.deleteByRecipientId(recipientId);
+    // rewardRepository.deleteByRecipientId(recipientId);
 
     processSystem(properties, "twitch", recipientId, refreshTokenId);
     // processSystem(properties, "vklive", recipientId, refreshTokenId);
@@ -89,6 +97,7 @@ public class WidgetChangedEventHandler
       properties,
       system + "PointsRequestsEnabled"
     );
+    log.info("music-" + system + "-request-title: " + enabled);
     if (!enabled) {
       return;
     }
@@ -97,6 +106,7 @@ public class WidgetChangedEventHandler
       properties,
       "music-" + system + "-request-title"
     );
+    log.info("music-" + system + "-request-title: " + title);
     if (title == null) {
       return;
     }
@@ -104,43 +114,38 @@ public class WidgetChangedEventHandler
       properties,
       "music-" + system + "-request-cost"
     );
+    log.info("music-" + system + "-request-cost: " + cost);
     if (cost == null) {
       return;
     }
 
-    var accessToken = token
-      .token(new TokenRPC.TokenRequest(recipientId, refreshTokenId))
-      .token();
-
-    new TwitchApiClient.CreateCustomRewardRequest(
-      title,
-      cost,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null
-    );
-
-    // twitch.createCustomReward(
-    //   recipientId,
-    //   system,
-    //   title,
-    //   cost
-    // )
+    twitch
+      .createCustomReward(
+        recipientId,
+        refreshTokenId,
+        new TwitchApiClient.CreateCustomRewardRequest(
+          title,
+          cost,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        )
+      )
+      .join();
 
     var reward = new TwitchRewardData(
       uuid.generate().toString(),
       recipientId,
       refreshTokenId,
-      system,
-      cost
+      system
     );
     rewardRepository.save(reward);
   }
