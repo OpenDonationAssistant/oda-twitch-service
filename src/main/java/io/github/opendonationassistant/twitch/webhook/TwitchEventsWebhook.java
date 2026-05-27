@@ -4,21 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 import io.github.opendonationassistant.commons.logging.ODALogger;
-import io.github.opendonationassistant.events.twitch.TwitchFacade;
-import io.github.opendonationassistant.events.twitch.events.TwitchChannelCheerEvent;
-import io.github.opendonationassistant.events.twitch.events.TwitchChannelFollowEvent;
-import io.github.opendonationassistant.events.twitch.events.TwitchChannelSubscriptionGiftEvent;
-import io.github.opendonationassistant.events.twitch.events.TwitchChannelSubscriptionMessageEvent;
-import io.github.opendonationassistant.events.twitch.events.TwitchStreamEndedEvent;
-import io.github.opendonationassistant.events.twitch.events.TwitchStreamStartedEvent;
-import io.github.opendonationassistant.events.twitch.events.TwitchUserBannedEvent;
-import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
-import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
-import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
-import io.github.opendonationassistant.rabbit.RabbitClient;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
-import io.github.opendonationassistant.twitch.repository.TwitchRewardRepository;
-import io.micronaut.context.annotation.Value;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -29,9 +15,6 @@ import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,36 +25,18 @@ import org.jspecify.annotations.Nullable;
 public class TwitchEventsWebhook {
 
   private final ODALogger log = new ODALogger(this);
-  private final TwitchFacade facade;
   private final TimeBasedEpochGenerator uuid =
     Generators.timeBasedEpochGenerator();
   private final TwitchAccountRepository repository;
-  private final String clientId;
-  private final String clientSecret;
-  private final TwitchIdClient idClient;
-  private final TwitchApiClient api;
-  private final RabbitClient rabbit;
-  private final TwitchRewardRepository rewardRepository;
+  private final List<TwitchEventHandler> handlers;
 
   @Inject
   public TwitchEventsWebhook(
-    TwitchFacade facade,
     TwitchAccountRepository repository,
-    @Value("${twitch.client.id}") String clientId,
-    @Value("${twitch.client.secret}") String clientSecret,
-    TwitchIdClient idClient,
-    TwitchApiClient api,
-    @Named("commands") RabbitClient rabbit,
-    TwitchRewardRepository rewardRepository
+    List<TwitchEventHandler> handlers
   ) {
-    this.facade = facade;
     this.repository = repository;
-    this.clientId = clientId;
-    this.clientSecret = clientSecret;
-    this.idClient = idClient;
-    this.api = api;
-    this.rabbit = rabbit;
-    this.rewardRepository = rewardRepository;
+    this.handlers = handlers;
   }
 
   @Post("/twitch/events")
@@ -99,124 +64,12 @@ public class TwitchEventsWebhook {
             final Optional<Event> event = Optional.ofNullable(message.event());
             String username = event.map(it -> it.userName()).orElse("");
             var id = uuid.generate().toString();
-            switch (message.subscription.type) {
-              case "channel.follow":
-                var timestamp = event
-                  .map(TwitchEventsWebhook.Event::timestamp)
-                  .map(Instant::parse)
-                  .orElse(Instant.now());
-                return facade.sendEvent(
-                  new TwitchChannelFollowEvent(
-                    id,
-                    account.recipientId(),
-                    username,
-                    timestamp
-                  )
-                );
-              case "channel.ban":
-                var isPermanent = event
-                  .map(TwitchEventsWebhook.Event::isPermanent)
-                  .orElse(false);
-                return facade.sendEvent(
-                  new TwitchUserBannedEvent(
-                    id,
-                    account.recipientId(),
-                    username,
-                    isPermanent
-                  )
-                );
-              case "channel.subscription.gift":
-                return facade.sendEvent(
-                  new TwitchChannelSubscriptionGiftEvent(
-                    id,
-                    account.recipientId(),
-                    username,
-                    event.map(TwitchEventsWebhook.Event::tier).orElse(""),
-                    event.map(TwitchEventsWebhook.Event::total).orElse(0),
-                    event
-                      .map(TwitchEventsWebhook.Event::cumulativeTotal)
-                      .orElse(0)
-                  )
-                );
-              case "channel.subscription.message":
-                return facade.sendEvent(
-                  new TwitchChannelSubscriptionMessageEvent(
-                    id,
-                    account.recipientId(),
-                    username,
-                    event.map(TwitchEventsWebhook.Event::tier).orElse(""),
-                    new TwitchChannelSubscriptionMessageEvent.Message(
-                      String.valueOf(
-                        event
-                          .map(it -> (Map<String, Object>) it.message())
-                          .map(it -> (String) it.get("text"))
-                          .orElse("")
-                      ),
-                      List.of()
-                    ),
-                    event.map(TwitchEventsWebhook.Event::total).orElse(0),
-                    event
-                      .map(TwitchEventsWebhook.Event::cumulativeTotal)
-                      .orElse(0),
-                    event.map(TwitchEventsWebhook.Event::streakMonths).orElse(0)
-                  )
-                );
-              case "channel.cheer":
-                return facade.sendEvent(
-                  new TwitchChannelCheerEvent(
-                    id,
-                    account.recipientId(),
-                    username,
-                    event
-                      .map(TwitchEventsWebhook.Event::message)
-                      .map(String::valueOf)
-                      .orElse(""),
-                    event
-                      .map(TwitchEventsWebhook.Event::bits)
-                      .map(String::valueOf)
-                      .orElse("0")
-                  )
-                );
-              case "stream.online":
-                return getToken()
-                  .thenCompose(response ->
-                    api.getStreams(
-                      clientId,
-                      response.accessToken(),
-                      account.twitchId(),
-                      "live"
-                    )
-                  )
-                  .thenAccept(stream -> {
-                    Optional.ofNullable(stream.data().getFirst())
-                      .map(it -> it.thumbnailUrl())
-                      .ifPresent(thumbnailUrl ->
-                        facade.sendEvent(
-                          new TwitchStreamStartedEvent(
-                            id,
-                            account.recipientId(),
-                            thumbnailUrl
-                          )
-                        )
-                      );
-                  });
-              case "stream.offline":
-                return facade.sendEvent(
-                  new TwitchStreamEndedEvent(id, account.recipientId())
-                );
-              case "channel.channel_points_custom_reward_redemption.add":
-                event.ifPresent(it -> {
-                  rewardRepository
-                    .findByRecipientIdAndType(account.recipientId(), "music")
-                    .filter(r -> r.data().id().equals(it.reward().id()))
-                    .ifPresent(reward -> {
-                      reward.sendAddMediaCommand(it.userInput(), it.userName());
-                    });
-                });
-                return CompletableFuture.completedFuture(HttpResponse.ok(""));
-              default:
-                return CompletableFuture.completedFuture(null);
-            }
+            var context = new EventContext(id, account, username, event);
+            return handlers.stream()
+              .filter(h -> h.canHandle(message.subscription.type))
+              .findFirst()
+              .map(h -> h.handle(context))
+              .orElseGet(() -> CompletableFuture.completedFuture(null));
           })
           .orElseGet(() -> {
             log.info(
@@ -230,14 +83,6 @@ public class TwitchEventsWebhook {
         log.info("Unknown webhook message type", Map.of("type", type));
         return CompletableFuture.completedFuture(HttpResponse.ok(""));
     }
-  }
-
-  private CompletableFuture<GetAccessRecordResponse> getToken() {
-    var params = new HashMap<String, String>();
-    params.put("client_id", clientId);
-    params.put("client_secret", clientSecret);
-    params.put("grant_type", "client_credentials");
-    return idClient.getToken(params);
   }
 
   @Serdeable

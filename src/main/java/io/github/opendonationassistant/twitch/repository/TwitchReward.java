@@ -13,7 +13,7 @@ public class TwitchReward {
     this.data = data;
   }
 
-  public TwitchRewardData data(){
+  public TwitchRewardData data() {
     return data;
   }
 
