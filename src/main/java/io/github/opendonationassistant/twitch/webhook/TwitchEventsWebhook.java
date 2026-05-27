@@ -17,8 +17,8 @@ import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
 import io.github.opendonationassistant.rabbit.RabbitClient;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
+import io.github.opendonationassistant.twitch.repository.TwitchRewardRepository;
 import io.micronaut.context.annotation.Value;
-import jakarta.inject.Named;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -29,6 +29,7 @@ import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +51,7 @@ public class TwitchEventsWebhook {
   private final TwitchIdClient idClient;
   private final TwitchApiClient api;
   private final RabbitClient rabbit;
+  private final TwitchRewardRepository rewardRepository;
 
   @Inject
   public TwitchEventsWebhook(
@@ -59,7 +61,8 @@ public class TwitchEventsWebhook {
     @Value("${twitch.client.secret}") String clientSecret,
     TwitchIdClient idClient,
     TwitchApiClient api,
-    @Named("commands") RabbitClient rabbit
+    @Named("commands") RabbitClient rabbit,
+    TwitchRewardRepository rewardRepository
   ) {
     this.facade = facade;
     this.repository = repository;
@@ -68,6 +71,7 @@ public class TwitchEventsWebhook {
     this.idClient = idClient;
     this.api = api;
     this.rabbit = rabbit;
+    this.rewardRepository = rewardRepository;
   }
 
   @Post("/twitch/events")
@@ -201,14 +205,14 @@ public class TwitchEventsWebhook {
                   new TwitchStreamEndedEvent(id, account.recipientId())
                 );
               case "channel.channel_points_custom_reward_redemption.add":
-                rabbit.sendCommand(
-                  new AddMediaCommand(
-                    event.map(TwitchEventsWebhook.Event::userInput).orElse(""),
-                    username,
-                    account.recipientId(),
-                    "twitch"
-                  )
-                );
+                event.ifPresent(it -> {
+                  rewardRepository
+                    .findByRecipientIdAndType(account.recipientId(), "music")
+                    .filter(r -> r.data().id().equals(it.reward().id()))
+                    .ifPresent(reward -> {
+                      reward.sendAddMediaCommand(it.userInput(), it.userName());
+                    });
+                });
                 return CompletableFuture.completedFuture(HttpResponse.ok(""));
               default:
                 return CompletableFuture.completedFuture(null);
@@ -251,6 +255,7 @@ public class TwitchEventsWebhook {
 
   @Serdeable
   public static record Event(
+    @Nullable @JsonProperty("broadcaster_user_id") String broadcasterId,
     @Nullable @JsonProperty("user_name") String userName,
     @Nullable @JsonProperty("tier") String tier,
     @Nullable @JsonProperty("is_gift") Boolean isGift,

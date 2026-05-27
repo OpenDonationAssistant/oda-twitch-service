@@ -139,15 +139,18 @@ public class WidgetChangedEventHandler
           null
         )
       )
-      .join();
-
-    var reward = new TwitchRewardData(
-      uuid.generate().toString(),
-      recipientId,
-      refreshTokenId,
-      system
-    );
-    rewardRepository.save(reward);
+      .join()
+      .data()
+      .forEach(reward -> {
+        rewardRepository.save(
+          new TwitchRewardData(
+            reward.id(),
+            recipientId,
+            refreshTokenId,
+            "music"
+          )
+        );
+      });
   }
 
   private boolean findBoolProperty(

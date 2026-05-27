@@ -13,6 +13,10 @@ public class TwitchReward {
     this.data = data;
   }
 
+  public TwitchRewardData data(){
+    return data;
+  }
+
   public void sendAddMediaCommand(String url, String requester) {
     rabbit.sendCommand(
       new AddMediaCommand(url, requester, data.recipientId(), data.type())
