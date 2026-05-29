@@ -19,7 +19,7 @@ public class TwitchReward {
 
   public void sendAddMediaCommand(String url, String requester) {
     rabbit.sendCommand(
-      new AddMediaCommand(url, requester, data.recipientId(), data.type())
+      new AddMediaCommand(url, requester, data.recipientId(), "twitch")
     );
   }
 }
