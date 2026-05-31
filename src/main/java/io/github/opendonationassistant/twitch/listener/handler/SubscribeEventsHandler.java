@@ -1,6 +1,7 @@
 package io.github.opendonationassistant.twitch.listener.handler;
 
 import com.fasterxml.uuid.Generators;
+import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
@@ -15,6 +16,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +26,7 @@ public class SubscribeEventsHandler
     SubscribeEventsHandler.SubcribeTwitchEventsCommand
   > {
 
+  private final ODALogger log = new ODALogger(this);
   private final TwitchApiClient apiClient;
   private final String clientId;
   private final TwitchWebhookRepository webhookRepository;
@@ -44,60 +47,76 @@ public class SubscribeEventsHandler
 
   @Override
   public void handle(SubcribeTwitchEventsCommand command) throws IOException {
-    var response = apiClient
-      .subscribe(
-        clientId,
-        "Bearer %s".formatted(command.token()),
-        new SubscribeRequest(
-          command.event(),
-          version(command.event()),
-          Map.of(
-            "broadcaster_user_id",
-            command.twitchId(),
-            "moderator_user_id",
-            command.twitchId()
-          ),
-          new Transport(
-            "webhook",
-            "https://api.oda.digital/twitch/events",
-            "oda-client-secret"
+    var conditions = new HashMap<String, String>();
+    conditions.put("broadcaster_user_id", command.twitchId());
+    conditions.put("moderator_user_id", command.twitchId());
+    if ("user.authorization.revoke".equals(command.event())) {
+      conditions.put("user_id", command.twitchId());
+    }
+    try {
+      var response = apiClient
+        .subscribe(
+          clientId,
+          "Bearer %s".formatted(command.token()),
+          new SubscribeRequest(
+            command.event(),
+            version(command.event()),
+            conditions,
+            new Transport(
+              "webhook",
+              "https://api.oda.digital/twitch/events",
+              "oda-client-secret"
+            )
           )
         )
-      )
-      .join();
-    var subscriptionId = response.data()[0].id();
-    webhookRepository
-      .findByRecipientIdAndRefreshTokenId(
-        command.recipientId(),
-        command.refreshTokenId()
-      )
-      .ifPresentOrElse(
-        existing -> {
-          var ids = new ArrayList<String>();
-          ids.addAll(existing.subscriptionIds());
-          ids.add(subscriptionId);
-          webhookRepository.update(
-            new TwitchWebhook(
-              existing.id(),
-              command.recipientId(),
-              command.twitchId(),
-              command.refreshTokenId(),
-              ids
-            )
-          );
-        },
-        () -> {
-          webhookRepository.save(
-            new TwitchWebhook(
-              Generators.timeBasedEpochGenerator().generate().toString(),
-              command.recipientId(),
-              command.twitchId(),
-              command.refreshTokenId(),
-              List.of(subscriptionId)
-            )
-          );
-        }
+        .join();
+      var subscriptionId = response.data()[0].id();
+      webhookRepository
+        .findByRecipientIdAndRefreshTokenId(
+          command.recipientId(),
+          command.refreshTokenId()
+        )
+        .ifPresentOrElse(
+          existing -> {
+            var ids = new ArrayList<String>();
+            ids.addAll(existing.subscriptionIds());
+            ids.add(subscriptionId);
+            webhookRepository.update(
+              new TwitchWebhook(
+                existing.id(),
+                command.recipientId(),
+                command.twitchId(),
+                command.refreshTokenId(),
+                ids
+              )
+            );
+          },
+          () -> {
+            webhookRepository.save(
+              new TwitchWebhook(
+                Generators.timeBasedEpochGenerator().generate().toString(),
+                command.recipientId(),
+                command.twitchId(),
+                command.refreshTokenId(),
+                List.of(subscriptionId)
+              )
+            );
+          }
+        );
+    } catch (Exception e) {
+      log.error(
+        "Error subscribing to twitch event",
+        Map.of(
+          "error",
+          e.getMessage(),
+          "event",
+          command.event(),
+          "recipientId",
+          command.recipientId()
+        )
       );
+      throw e;
+    }
   }
 
   private String version(String type) {
