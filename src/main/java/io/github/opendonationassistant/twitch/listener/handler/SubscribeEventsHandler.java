@@ -53,6 +53,12 @@ public class SubscribeEventsHandler
     if ("user.authorization.revoke".equals(command.event())) {
       conditions.put("user_id", command.twitchId());
     }
+    if ("user.authorization.revoke".equals(command.event())) {
+      conditions.put("client_id", clientId);
+    }
+    if ("channel.raid".equals(command.event())) {
+      conditions.put("to_broadcaster_user_id", command.twitchId());
+    }
     try {
       var response = apiClient
         .subscribe(
