@@ -112,6 +112,9 @@ public class TwitchEventsWebhook {
     @Nullable @JsonProperty(
       "from_broadcaster_user_name"
     ) String fromBroadcasterName,
+    @Nullable @JsonProperty(
+      "from_broadcaster_user_id"
+    ) String fromBroadcasterId,
     @Nullable @JsonProperty("viewers") Integer viewers,
     @Nullable @JsonProperty("total") Integer total,
     @Nullable @JsonProperty("cumulative_total") Integer cumulativeTotal,

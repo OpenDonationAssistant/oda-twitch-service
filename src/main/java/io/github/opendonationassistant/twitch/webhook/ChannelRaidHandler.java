@@ -2,6 +2,7 @@ package io.github.opendonationassistant.twitch.webhook;
 
 import io.github.opendonationassistant.events.twitch.TwitchFacade;
 import io.github.opendonationassistant.events.twitch.events.TwitchChannelRaidEvent;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.util.concurrent.CompletableFuture;
@@ -27,9 +28,19 @@ public class ChannelRaidHandler implements TwitchEventHandler {
       new TwitchChannelRaidEvent(
         context.id(),
         context.account().recipientId(),
+        context.event().map(it -> it.fromBroadcasterId()).orElse(""),
         context.event().map(it -> it.fromBroadcasterName()).orElse(""),
         context.event().map(it -> it.viewers()).orElse(0)
       )
     );
   }
+
+  @Serdeable
+  public record TwitchChannelRaidEvent(
+    String id,
+    String recipientId,
+    String fromChannelId,
+    String fromChannelName,
+    Integer viewerCount
+  ) {}
 }
