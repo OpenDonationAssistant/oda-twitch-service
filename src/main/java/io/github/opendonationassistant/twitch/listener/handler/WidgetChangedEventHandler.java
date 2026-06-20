@@ -5,16 +5,20 @@ import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateCustomRewardRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardData;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardDataRepository;
+import io.github.opendonationassistant.twitch.repository.TwitchRewardRepository;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 @Singleton
@@ -26,14 +30,14 @@ public class WidgetChangedEventHandler
 
   private final TimeBasedEpochGenerator uuid =
     Generators.timeBasedEpochGenerator();
-  private final TwitchRewardDataRepository rewardRepository;
+  private final TwitchRewardRepository rewardRepository;
   private final TwitchAccountRepository accountRepository;
   private final TwitchClient twitch;
 
   @Inject
   public WidgetChangedEventHandler(
     ObjectMapper mapper,
-    TwitchRewardDataRepository rewardRepository,
+    TwitchRewardRepository rewardRepository,
     TwitchAccountRepository accountRepository,
     TwitchClient twitch
   ) {
@@ -57,6 +61,11 @@ public class WidgetChangedEventHandler
       return;
     }
 
+    var widgetId = widget.id();
+    if (widgetId == null) {
+      return;
+    }
+
     var config = widget.config();
     if (config == null) {
       return;
@@ -67,32 +76,20 @@ public class WidgetChangedEventHandler
       return;
     }
 
-    var ownerId = widget.ownerId();
-    if (ownerId == null) {
-      return;
-    }
-
-    var account = accountRepository.findByRecipientId(ownerId);
-    if (account.isEmpty()) {
-      return;
-    }
-
-    var refreshTokenId = account.get().refreshTokenId();
-    var recipientId = ownerId;
-
-    // rewardRepository.deleteByRecipientId(recipientId);
-
-    processSystem(properties, "twitch", recipientId, refreshTokenId);
-    // processSystem(properties, "vklive", recipientId, refreshTokenId);
-    // processSystem(properties, "kick", recipientId, refreshTokenId);
+    Optional.ofNullable(widget.ownerId())
+      .flatMap(accountRepository::findByRecipientId)
+      .ifPresent(account ->
+        processSystem(widgetId, properties, "music", account)
+      );
   }
 
   private void processSystem(
+    String widgetId,
     List<WidgetProperty> properties,
     String system,
-    String recipientId,
-    String refreshTokenId
+    TwitchAccountData account
   ) {
+    var refreshTokenId = account.refreshTokenId();
     var enabled = findBoolProperty(
       properties,
       system + "PointsRequestsEnabled"
@@ -119,38 +116,71 @@ public class WidgetChangedEventHandler
       return;
     }
 
-    twitch
-      .createCustomReward(
-        recipientId,
-        refreshTokenId,
-        new TwitchApiClient.CreateCustomRewardRequest(
-          title,
-          cost,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
-        )
-      )
-      .join()
-      .data()
-      .forEach(reward -> {
-        rewardRepository.save(
-          new TwitchRewardData(
-            reward.id(),
-            recipientId,
-            refreshTokenId,
-            "music"
-          )
-        );
-      });
+    rewardRepository
+      .findByWidgetId(widgetId)
+      .ifPresentOrElse(
+        reward -> {
+          twitch
+            .updateCustomReward(
+              account.recipientId(),
+              account.refreshTokenId(),
+              account.twitchId(),
+              reward.data().id(),
+              new UpdateCustomRewardRequest(
+                title,
+                cost,
+                null,
+                true,
+                null,
+                true,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false
+              )
+            )
+            .join();
+        },
+        () -> {
+          twitch
+            .createCustomReward(
+              account.recipientId(),
+              account.refreshTokenId(),
+              new TwitchApiClient.CreateCustomRewardRequest(
+                title,
+                cost,
+                null,
+                true,
+                null,
+                true,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+              )
+            )
+            .join()
+            .data()
+            .forEach(reward -> {
+              rewardRepository.create(
+                new TwitchRewardData(
+                  reward.id(),
+                  account.recipientId(),
+                  account.refreshTokenId(),
+                  widgetId,
+                  "music"
+                )
+              );
+            });
+        }
+      );
   }
 
   private boolean findBoolProperty(

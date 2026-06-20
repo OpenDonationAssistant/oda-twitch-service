@@ -8,6 +8,7 @@ import java.util.Optional;
 @JdbcRepository(dialect = Dialect.POSTGRES)
 public interface TwitchRewardDataRepository
   extends CrudRepository<TwitchRewardData, String> {
+  Optional<TwitchRewardData> findOneByWidgetId(String widgetId);
   Optional<TwitchRewardData> findByRecipientIdAndType(
     String recipientId,
     String type

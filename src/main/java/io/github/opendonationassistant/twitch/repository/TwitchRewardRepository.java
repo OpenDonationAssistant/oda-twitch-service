@@ -26,6 +26,12 @@ public class TwitchRewardRepository {
     return new TwitchReward(rabbit, saved);
   }
 
+  public Optional<TwitchReward> findByWidgetId(String widgetid) {
+    return repository
+      .findOneByWidgetId(widgetid)
+      .map(data -> new TwitchReward(rabbit, data));
+  }
+
   public Optional<TwitchReward> findByRecipientIdAndType(
     String recipientId,
     String type
