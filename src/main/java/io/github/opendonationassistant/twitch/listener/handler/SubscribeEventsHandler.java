@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Singleton
 public class SubscribeEventsHandler
@@ -110,6 +111,13 @@ public class SubscribeEventsHandler
           }
         );
     } catch (Exception e) {
+      if (
+        Optional.ofNullable(e.getMessage())
+          .filter(it -> it.contains("already exists"))
+          .isPresent()
+      ) {
+        return;
+      }
       log.error(
         "Error subscribing to twitch event",
         Map.of(
