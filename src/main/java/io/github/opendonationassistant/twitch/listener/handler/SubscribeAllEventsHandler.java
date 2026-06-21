@@ -50,8 +50,7 @@ public class SubscribeAllEventsHandler
     "stream.offline",
     "channel.goal.begin",
     "channel.goal.progress",
-    "channel.goal.end",
-    "user.authorization.revoke"
+    "channel.goal.end"
   );
 
   public SubscribeAllEventsHandler(

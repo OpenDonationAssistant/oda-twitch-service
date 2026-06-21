@@ -116,6 +116,15 @@ public class SubscribeEventsHandler
           .filter(it -> it.contains("already exists"))
           .isPresent()
       ) {
+        log.info(
+          "Duplicate subscription",
+          Map.of(
+            "event",
+            command.event(),
+            "recipientId",
+            command.recipientId()
+          )
+        );
         return;
       }
       log.error(
