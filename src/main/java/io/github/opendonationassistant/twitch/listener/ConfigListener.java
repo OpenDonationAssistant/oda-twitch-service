@@ -1,4 +1,4 @@
-package io.github.opendonationassistant.twitch.listener.handler;
+package io.github.opendonationassistant.twitch.listener;
 
 import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
@@ -7,26 +7,38 @@ import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateCustomRewardRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
+import io.github.opendonationassistant.rabbit.Exchange;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardData;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardDataRepository;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardRepository;
+import io.micronaut.rabbitmq.annotation.Queue;
+import io.micronaut.rabbitmq.annotation.RabbitListener;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
-@Singleton
-public class WidgetChangedEventHandler
-  extends AbstractMessageHandler<WidgetChangedEventHandler.WidgetChangedEvent> {
+@RabbitListener(executor = "config-listener")
+public class ConfigListener
+  extends AbstractMessageHandler<ConfigListener.WidgetChangedEvent> {
 
   private ODALogger log = new ODALogger(this);
+
   private static final String WIDGET_TYPE = "media";
+  public static final String QUEUE_NAME = "twitch.config";
+  public static final io.github.opendonationassistant.rabbit.Queue QUEUE =
+    new io.github.opendonationassistant.rabbit.Queue(QUEUE_NAME);
+  public static final Exchange BINDING = Exchange.Exchange(
+    "changes.widgets",
+    Map.of(WIDGET_TYPE, ConfigListener.QUEUE)
+  );
 
   private final TimeBasedEpochGenerator uuid =
     Generators.timeBasedEpochGenerator();
@@ -35,7 +47,7 @@ public class WidgetChangedEventHandler
   private final TwitchClient twitch;
 
   @Inject
-  public WidgetChangedEventHandler(
+  public ConfigListener(
     ObjectMapper mapper,
     TwitchRewardRepository rewardRepository,
     TwitchAccountRepository accountRepository,
@@ -47,7 +59,7 @@ public class WidgetChangedEventHandler
     this.twitch = twitch;
   }
 
-  @Override
+  @Queue(QUEUE_NAME)
   public void handle(WidgetChangedEvent event) throws IOException {
     if (!"updated".equals(event.type())) {
       return;

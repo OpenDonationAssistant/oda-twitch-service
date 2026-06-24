@@ -4,6 +4,7 @@ import io.github.opendonationassistant.rabbit.AMQPConfiguration;
 import io.github.opendonationassistant.rabbit.Exchange;
 import io.github.opendonationassistant.rabbit.RabbitClient;
 import io.github.opendonationassistant.twitch.listener.CommandListener;
+import io.github.opendonationassistant.twitch.listener.ConfigListener;
 import io.micronaut.context.ApplicationContextBuilder;
 import io.micronaut.context.ApplicationContextConfigurer;
 import io.micronaut.context.annotation.ContextConfigurer;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.*;
 import io.swagger.v3.oas.annotations.info.*;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -39,27 +41,28 @@ public class Application {
 
   @Singleton
   public ChannelInitializer rabbitConfiguration() {
-    return new AMQPConfiguration(
-      List.of(
-        Exchange.Exchange(
-          "commands",
-          Map.of(
-            "command.LinkTwitchAccount",
-            CommandListener.QUEUE,
-            "command.SubscribeAllTwitchEventsCommand",
-            CommandListener.QUEUE,
-            "command.SubcribeTwitchEventsCommand",
-            CommandListener.QUEUE,
-            "command.UnsubscribeAllTwitchEventsCommand",
-            CommandListener.QUEUE,
-            "command.SendAndPinChatMessageCommand",
-            CommandListener.QUEUE,
-            "command.TwitchShoutoutCommand",
-            CommandListener.QUEUE
-          )
+    var bindings = new ArrayList<Exchange>();
+    bindings.add(
+      Exchange.Exchange(
+        "commands",
+        Map.of(
+          "command.LinkTwitchAccount",
+          CommandListener.QUEUE,
+          "command.SubscribeAllTwitchEventsCommand",
+          CommandListener.QUEUE,
+          "command.SubcribeTwitchEventsCommand",
+          CommandListener.QUEUE,
+          "command.UnsubscribeAllTwitchEventsCommand",
+          CommandListener.QUEUE,
+          "command.SendAndPinChatMessageCommand",
+          CommandListener.QUEUE,
+          "command.TwitchShoutoutCommand",
+          CommandListener.QUEUE
         )
       )
     );
+    bindings.add(ConfigListener.BINDING);
+    return new AMQPConfiguration(bindings);
   }
 
   @Singleton
