@@ -36,6 +36,7 @@ public class SubscribeAllEventsHandler
     "channel.subscribe",
     "channel.subscription.gift",
     "channel.subscription.message",
+    "channel.channel_points_custom_reward_redemption.add",
     "channel.cheer",
     "channel.raid",
     "channel.poll.begin",
