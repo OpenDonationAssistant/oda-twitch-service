@@ -91,7 +91,7 @@ public class ConfigListener
     Optional.ofNullable(widget.ownerId())
       .flatMap(accountRepository::findByRecipientId)
       .ifPresent(account ->
-        processSystem(widgetId, properties, "music", account)
+        processSystem(widgetId, properties, "twitch", account)
       );
   }
 
