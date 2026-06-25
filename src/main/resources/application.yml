@@ -22,6 +22,9 @@ micronaut:
     command-listener:
       type: fixed
       nThreads: 1
+    config-listener:
+      type: fixed
+      nThreads: 1
     event-listener:
       type: fixed
       nThreads: 1
