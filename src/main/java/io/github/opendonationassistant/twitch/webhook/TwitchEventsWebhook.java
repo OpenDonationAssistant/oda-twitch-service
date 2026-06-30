@@ -53,19 +53,27 @@ public class TwitchEventsWebhook {
     switch (type) {
       case "webhook_callback_verification":
         return CompletableFuture.completedFuture(
-          HttpResponse.ok(message.challenge)
+          Optional.ofNullable(message.challenge())
+            .map(HttpResponse::ok)
+            .orElseGet(() -> HttpResponse.ok())
         );
       case "notification":
         return Optional.ofNullable(
           message.subscription().condition().get("broadcaster_user_id")
         )
+          .or(() ->
+            Optional.ofNullable(
+              message.subscription().condition().get("to_broadcaster_user_id")
+            )
+          )
           .flatMap(userId -> repository.findByTwitchId(userId))
           .map(account -> {
             final Optional<Event> event = Optional.ofNullable(message.event());
             String username = event.map(it -> it.userName()).orElse("");
             var id = uuid.generate().toString();
             var context = new EventContext(id, account, username, event);
-            return handlers.stream()
+            return handlers
+              .stream()
               .filter(h -> h.canHandle(message.subscription.type))
               .findFirst()
               .map(h -> h.handle(context))
