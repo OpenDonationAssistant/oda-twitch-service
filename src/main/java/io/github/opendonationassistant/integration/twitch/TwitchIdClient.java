@@ -9,7 +9,6 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.annotation.Serdeable;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
 import org.jspecify.annotations.Nullable;
 
 @Client("twitch-id")

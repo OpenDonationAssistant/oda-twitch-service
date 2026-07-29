@@ -1,7 +1,6 @@
 package io.github.opendonationassistant.twitch.webhook;
 
 import io.github.opendonationassistant.events.twitch.TwitchFacade;
-import io.github.opendonationassistant.events.twitch.events.TwitchChannelRaidEvent;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
