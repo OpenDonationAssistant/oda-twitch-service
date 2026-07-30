@@ -1,4 +1,4 @@
-FROM fedora:41
+FROM fedora:44
 WORKDIR /app
 COPY target/oda-twitch-service /app
 
