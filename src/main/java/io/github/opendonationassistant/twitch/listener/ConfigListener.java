@@ -106,7 +106,7 @@ public class ConfigListener
       properties,
       system + "PointsRequestsEnabled"
     );
-    log.info("music-" + system + "-request-title: " + enabled);
+    log.info("music-" + system + "-request-title: " + enabled, Map.of("recipientId", account.recipientId(), "widgetId", widgetId));
     if (!enabled) {
       return;
     }
@@ -115,7 +115,7 @@ public class ConfigListener
       properties,
       "music-" + system + "-request-title"
     );
-    log.info("music-" + system + "-request-title: " + title);
+    log.info("music-" + system + "-request-title: " + title, Map.of("recipientId", account.recipientId(), "widgetId", widgetId));
     if (title == null) {
       return;
     }
@@ -123,7 +123,7 @@ public class ConfigListener
       properties,
       "music-" + system + "-request-cost"
     );
-    log.info("music-" + system + "-request-cost: " + cost);
+    log.info("music-" + system + "-request-cost: " + cost, Map.of("recipientId", account.recipientId(), "widgetId", widgetId));
     if (cost == null) {
       return;
     }
