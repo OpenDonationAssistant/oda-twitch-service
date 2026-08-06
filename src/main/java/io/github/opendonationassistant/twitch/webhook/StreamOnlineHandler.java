@@ -3,36 +3,22 @@ package io.github.opendonationassistant.twitch.webhook;
 import io.github.opendonationassistant.events.twitch.TwitchFacade;
 import io.github.opendonationassistant.events.twitch.events.TwitchStreamStartedEvent;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
-import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
-import io.micronaut.context.annotation.Value;
+import io.github.opendonationassistant.integration.twitch.TwitchClient;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Singleton
 public class StreamOnlineHandler implements TwitchEventHandler {
 
-  private final TwitchApiClient api;
-  private final TwitchIdClient idClient;
   private final TwitchFacade facade;
-  private final String clientId;
-  private final String clientSecret;
+  private final TwitchClient client;
 
   @Inject
-  public StreamOnlineHandler(
-    TwitchApiClient api,
-    TwitchIdClient idClient,
-    TwitchFacade facade,
-    @Value("${twitch.client.id}") String clientId,
-    @Value("${twitch.client.secret}") String clientSecret
-  ) {
-    this.api = api;
-    this.idClient = idClient;
+  public StreamOnlineHandler(TwitchFacade facade, TwitchClient client) {
     this.facade = facade;
-    this.clientId = clientId;
-    this.clientSecret = clientSecret;
+    this.client = client;
   }
 
   @Override
@@ -42,14 +28,12 @@ public class StreamOnlineHandler implements TwitchEventHandler {
 
   @Override
   public CompletableFuture<?> handle(EventContext context) {
-    return getToken()
-      .thenCompose(response ->
-        api.getStreams(
-          clientId,
-          response.accessToken(),
-          context.account().twitchId(),
-          "live"
-        )
+    return client
+      .getStreams(
+        context.account().recipientId(),
+        context.account().refreshTokenId(),
+        context.account().twitchId(),
+        "live"
       )
       .thenAccept(stream -> {
         Optional.ofNullable(stream.data().getFirst())
@@ -64,13 +48,5 @@ public class StreamOnlineHandler implements TwitchEventHandler {
             )
           );
       });
-  }
-
-  private CompletableFuture<TwitchIdClient.GetAccessRecordResponse> getToken() {
-    var params = new HashMap<String, String>();
-    params.put("client_id", clientId);
-    params.put("client_secret", clientSecret);
-    params.put("grant_type", "client_credentials");
-    return idClient.getToken(params);
   }
 }

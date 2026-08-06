@@ -1,17 +1,17 @@
 package io.github.opendonationassistant.twitch.listener.handler;
 
 import io.github.opendonationassistant.events.AbstractMessageHandler;
-import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.DataWrapper;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageRequest;
-import io.github.opendonationassistant.rabbit.TokenRPC;
-import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageResponse;
+import io.github.opendonationassistant.integration.twitch.TwitchClient;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
-import io.micronaut.context.annotation.Value;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
+import java.util.List;
 
 @Singleton
 public class SendAndPinChatMessageHandler
@@ -19,47 +19,41 @@ public class SendAndPinChatMessageHandler
     SendAndPinChatMessageHandler.SendAndPinChatMessageCommand
   > {
 
-  private final TwitchApiClient apiClient;
-  private final String clientId;
-  private final TokenRPC tokenRPC;
+  private final TwitchClient twitch;
   private final TwitchAccountRepository repository;
 
   @Inject
   public SendAndPinChatMessageHandler(
     ObjectMapper mapper,
-    TwitchApiClient apiClient,
-    @Value("${twitch.client.id}") String clientId,
-    TokenRPC tokenRPC,
+    TwitchClient twitch,
     TwitchAccountRepository repository
   ) {
     super(mapper);
-    this.apiClient = apiClient;
-    this.clientId = clientId;
-    this.tokenRPC = tokenRPC;
+    this.twitch = twitch;
     this.repository = repository;
   }
 
   @Override
   public void handle(SendAndPinChatMessageCommand message) throws IOException {
-    var token = tokenRPC.token(
-      new TokenRequest(message.recipientId(), message.refreshTokenId())
+    final var account = repository.findByRefreshTokenId(
+      message.senderRefreshTokenId()
     );
-    if (token == null || token.token() == null) {
-      return;
-    }
-    var account = repository.findByRecipientId(message.recipientId());
     if (account.isEmpty()) {
       return;
     }
-    var twitchId = account.get().twitchId();
-    var auth = "Bearer %s".formatted(token.token());
-    var sendResponse = apiClient
+
+    final DataWrapper<List<SendChatMessageResponse>> sendResponse = twitch
       .sendChatMessage(
-        clientId,
-        auth,
-        new SendChatMessageRequest(twitchId, twitchId, message.message())
+        message.recipientId(),
+        message.senderRefreshTokenId(),
+        new SendChatMessageRequest(
+          message.recipientTwitchId(),
+          account.get().twitchId(),
+          message.message()
+        )
       )
       .join();
+
     if (sendResponse.data() == null || sendResponse.data().isEmpty()) {
       return;
     }
@@ -67,12 +61,12 @@ public class SendAndPinChatMessageHandler
     if (!sent.isSent()) {
       return;
     }
-    apiClient
+    twitch
       .pinChatMessage(
-        clientId,
-        auth,
-        twitchId,
-        twitchId,
+        message.recipientId(),
+        message.senderRefreshTokenId(),
+        message.recipientTwitchId(),
+        account.get().twitchId(),
         sent.messageId(),
         null
       )
@@ -82,7 +76,8 @@ public class SendAndPinChatMessageHandler
   @Serdeable
   public static record SendAndPinChatMessageCommand(
     String recipientId,
-    String refreshTokenId,
+    String senderRefreshTokenId,
+    String recipientTwitchId,
     String message
   ) {}
 }

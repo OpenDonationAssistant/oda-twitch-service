@@ -20,7 +20,7 @@ public class TwitchAccountRepository {
     String twitchLogin,
     String refreshTokenId
   ) {
-    // TODO check and throw error maybe
+    // TODO maybe check and throw error/update
     return repository.save(
       new TwitchAccountData(recipientId, twitchId, twitchLogin, refreshTokenId)
     );
@@ -32,5 +32,11 @@ public class TwitchAccountRepository {
 
   public Optional<TwitchAccountData> findByRecipientId(String recipientId) {
     return repository.findByRecipientId(recipientId);
+  }
+
+  public Optional<TwitchAccountData> findByRefreshTokenId(
+    String refreshTokenId
+  ) {
+    return repository.findByRecipientId(refreshTokenId);
   }
 }
