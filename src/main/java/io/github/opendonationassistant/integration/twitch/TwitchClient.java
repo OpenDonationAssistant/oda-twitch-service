@@ -229,14 +229,14 @@ public class TwitchClient {
     String refreshTokenId,
     Function<String, CompletableFuture<T>> fn
   ) {
-    return tokenRPC
-      .token(new TokenRequest(recipientId, refreshTokenId))
-      .thenCompose(token -> {
-        if (token == null || token.token() == null) {
-          throw Problem.builder().withTitle("Unauthorized").build();
-        }
-        var authHeader = "Bearer %s".formatted(token.token());
-        return fn.apply(authHeader);
-      });
+    return CompletableFuture.supplyAsync(() ->
+      tokenRPC.token(new TokenRequest(recipientId, refreshTokenId))
+    ).thenCompose(token -> {
+      if (token == null || token.token() == null) {
+        throw Problem.builder().withTitle("Unauthorized").build();
+      }
+      var authHeader = "Bearer %s".formatted(token.token());
+      return fn.apply(authHeader);
+    });
   }
 }
