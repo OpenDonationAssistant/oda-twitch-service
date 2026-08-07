@@ -21,6 +21,7 @@ import jakarta.inject.Singleton;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.zalando.problem.Problem;
 
@@ -118,15 +119,8 @@ public class TwitchClient {
     String userId,
     String type
   ) {
-    var token = tokenRPC.token(new TokenRequest(recipientId, refreshTokenId));
-    if (token == null || token.token() == null) {
-      return CompletableFuture.completedFuture(new DataWrapper<>(List.of()));
-    }
-    return api.getStreams(
-      clientId,
-      "Bearer %s".formatted(token.token()),
-      userId,
-      type
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.getStreams(clientId, auth, userId, type)
     );
   }
 
@@ -135,11 +129,9 @@ public class TwitchClient {
     String refreshTokenId,
     String login
   ) {
-    var token = tokenRPC.token(new TokenRequest(recipientId, refreshTokenId));
-    if (token == null || token.token() == null) {
-      throw Problem.builder().withTitle("Unauthorized").build();
-    }
-    return api.getUser(clientId, "Bearer %s".formatted(token.token()), login);
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.getUser(clientId, auth, login)
+    );
   }
 
   public CompletableFuture<
@@ -149,14 +141,8 @@ public class TwitchClient {
     String refreshTokenId,
     SendChatMessageRequest request
   ) {
-    var token = tokenRPC.token(new TokenRequest(recipientId, refreshTokenId));
-    if (token == null || token.token() == null) {
-      return CompletableFuture.completedFuture(new DataWrapper<>(List.of()));
-    }
-    return api.sendChatMessage(
-      clientId,
-      "Bearer %s".formatted(token.token()),
-      request
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.sendChatMessage(clientId, auth, request)
     );
   }
 
@@ -167,16 +153,14 @@ public class TwitchClient {
     String toBroadcasterId,
     String moderatorId
   ) {
-    var token = tokenRPC.token(new TokenRequest(recipientId, refreshTokenId));
-    if (token == null || token.token() == null) {
-      return CompletableFuture.completedFuture(null);
-    }
-    return api.sendShoutout(
-      clientId,
-      "Bearer %s".formatted(token.token()),
-      fromBroadcasterId,
-      toBroadcasterId,
-      moderatorId
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.sendShoutout(
+        clientId,
+        auth,
+        fromBroadcasterId,
+        toBroadcasterId,
+        moderatorId
+      )
     );
   }
 
@@ -188,17 +172,15 @@ public class TwitchClient {
     String messageId,
     @Nullable Integer durationSeconds
   ) {
-    var token = tokenRPC.token(new TokenRequest(recipientId, refreshTokenId));
-    if (token == null || token.token() == null) {
-      return CompletableFuture.completedFuture(null);
-    }
-    return api.pinChatMessage(
-      clientId,
-      "Bearer %s".formatted(token.token()),
-      broadcasterId,
-      moderatorId,
-      messageId,
-      durationSeconds
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.pinChatMessage(
+        clientId,
+        auth,
+        broadcasterId,
+        moderatorId,
+        messageId,
+        durationSeconds
+      )
     );
   }
 
@@ -209,24 +191,13 @@ public class TwitchClient {
   ) {
     return accountRepository
       .findByRecipientId(recipientId)
-      .map(account -> {
-        var token = tokenRPC.token(
-          new TokenRequest(recipientId, refreshTokenId)
-        );
-        if (token == null || token.token() == null) {
-          return CompletableFuture.<
-              DataWrapper<List<CustomReward>>
-            >completedFuture(null);
-        }
-        return api.createCustomReward(
-          clientId,
-          "Bearer %s".formatted(token.token()),
-          account.twitchId(),
-          request
-        );
-      })
+      .map(account ->
+        runWithToken(recipientId, refreshTokenId, auth ->
+          api.createCustomReward(clientId, auth, account.twitchId(), request)
+        )
+      )
       .orElseGet(() ->
-        CompletableFuture.completedFuture(new DataWrapper(List.of()))
+        CompletableFuture.completedFuture(new DataWrapper<>(List.of()))
       );
   }
 
@@ -237,16 +208,8 @@ public class TwitchClient {
     String id,
     UpdateCustomRewardRequest request
   ) {
-    var token = tokenRPC.token(new TokenRequest(recipientId, refreshTokenId));
-    if (token == null || token.token() == null) {
-      return CompletableFuture.completedFuture(null);
-    }
-    return api.updateCustomReward(
-      clientId,
-      "Bearer %s".formatted(token.token()),
-      broadcasterId,
-      id,
-      request
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.updateCustomReward(clientId, auth, broadcasterId, id, request)
     );
   }
 
@@ -256,15 +219,24 @@ public class TwitchClient {
     String broadcasterId,
     String id
   ) {
-    var token = tokenRPC.token(new TokenRequest(recipientId, refreshTokenId));
-    if (token == null || token.token() == null) {
-      return CompletableFuture.completedFuture(null);
-    }
-    return api.deleteCustomReward(
-      clientId,
-      "Bearer %s".formatted(token.token()),
-      broadcasterId,
-      id
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.deleteCustomReward(clientId, auth, broadcasterId, id)
     );
+  }
+
+  private <T> CompletableFuture<T> runWithToken(
+    String recipientId,
+    String refreshTokenId,
+    Function<String, CompletableFuture<T>> fn
+  ) {
+    return tokenRPC
+      .token(new TokenRequest(recipientId, refreshTokenId))
+      .thenCompose(token -> {
+        if (token == null || token.token() == null) {
+          throw Problem.builder().withTitle("Unauthorized").build();
+        }
+        var authHeader = "Bearer %s".formatted(token.token());
+        return fn.apply(authHeader);
+      });
   }
 }

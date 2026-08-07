@@ -2,8 +2,6 @@ package io.github.opendonationassistant.twitch.listener.handler;
 
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
-import io.github.opendonationassistant.rabbit.TokenRPC;
-import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
@@ -18,19 +16,16 @@ public class SendTwitchShoutoutHandler
   > {
 
   private final TwitchClient twitch;
-  private final TokenRPC tokenRPC;
   private final TwitchAccountRepository repository;
 
   @Inject
   public SendTwitchShoutoutHandler(
     ObjectMapper mapper,
     TwitchClient apiClient,
-    TokenRPC tokenRPC,
     TwitchAccountRepository repository
   ) {
     super(mapper);
     this.twitch = apiClient;
-    this.tokenRPC = tokenRPC;
     this.repository = repository;
   }
 
@@ -41,12 +36,6 @@ public class SendTwitchShoutoutHandler
       return;
     }
     var refreshTokenId = account.get().refreshTokenId();
-    var token = tokenRPC.token(
-      new TokenRequest(message.recipientId(), refreshTokenId)
-    );
-    if (token == null || token.token() == null) {
-      return;
-    }
     var twitchId = account.get().twitchId();
     twitch
       .sendShoutout(
