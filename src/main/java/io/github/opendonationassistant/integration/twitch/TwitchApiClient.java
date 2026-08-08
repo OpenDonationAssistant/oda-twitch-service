@@ -10,6 +10,7 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.serde.annotation.Serdeable;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,8 @@ import org.jspecify.annotations.Nullable;
 
 @Client("twitch-api")
 public interface TwitchApiClient {
+
+  @Retryable
   @Post("/helix/eventsub/subscriptions")
   public CompletableFuture<DataWrapper<Subscription[]>> subscribe(
     @Header("Client-Id") String clientId,
@@ -25,12 +28,14 @@ public interface TwitchApiClient {
     @Body SubscribeRequest request
   );
 
+  @Retryable
   @Get("/helix/eventsub/subscriptions")
   public CompletableFuture<DataWrapper<Subscription[]>> getSubscriptions(
     @Header("Client-Id") String clientId,
     @Header("Authorization") String auth
   );
 
+  @Retryable
   @Delete("/helix/eventsub/subscriptions")
   public CompletableFuture<Void> deleteSubscription(
     @Header("Client-Id") String clientId,
@@ -39,6 +44,7 @@ public interface TwitchApiClient {
     @Nullable @QueryValue("id") String id
   );
 
+  @Retryable
   @Get("/helix/streams")
   public CompletableFuture<DataWrapper<List<Stream>>> getStreams(
     @Header("Client-Id") String clientId,
@@ -47,6 +53,7 @@ public interface TwitchApiClient {
     @QueryValue("type") String type
   );
 
+  @Retryable
   @Get("/helix/users")
   public CompletableFuture<DataWrapper<GetUserResponse>> getUser(
     @Header("Client-Id") String clientId,
@@ -54,6 +61,7 @@ public interface TwitchApiClient {
     @QueryValue("login") String login
   );
 
+  @Retryable
   @Post("/helix/chat/messages")
   CompletableFuture<DataWrapper<List<SendChatMessageResponse>>> sendChatMessage(
     @Header("Client-Id") String clientId,
@@ -61,6 +69,7 @@ public interface TwitchApiClient {
     @Body SendChatMessageRequest request
   );
 
+  @Retryable
   @Post("/helix/chat/shoutouts")
   CompletableFuture<Void> sendShoutout(
     @Header("Client-Id") String clientId,
@@ -70,6 +79,7 @@ public interface TwitchApiClient {
     @QueryValue("moderator_id") String moderatorId
   );
 
+  @Retryable
   @Put("/helix/chat/pins")
   CompletableFuture<Void> pinChatMessage(
     @Header("Client-Id") String clientId,
@@ -80,6 +90,7 @@ public interface TwitchApiClient {
     @Nullable @QueryValue("duration_seconds") Integer durationSeconds
   );
 
+  @Retryable
   @Post("/helix/channel_points/custom_rewards")
   CompletableFuture<DataWrapper<List<CustomReward>>> createCustomReward(
     @Header("Client-Id") String clientId,
@@ -88,6 +99,7 @@ public interface TwitchApiClient {
     @Body CreateCustomRewardRequest request
   );
 
+  @Retryable
   @Patch("/helix/channel_points/custom_rewards")
   CompletableFuture<DataWrapper<List<CustomReward>>> updateCustomReward(
     @Header("Client-Id") String clientId,
@@ -97,6 +109,7 @@ public interface TwitchApiClient {
     @Body UpdateCustomRewardRequest request
   );
 
+  @Retryable
   @Delete("/helix/channel_points/custom_rewards")
   CompletableFuture<Void> deleteCustomReward(
     @Header("Client-Id") String clientId,

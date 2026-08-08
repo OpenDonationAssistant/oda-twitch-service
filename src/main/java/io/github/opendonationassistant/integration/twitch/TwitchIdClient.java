@@ -6,6 +6,7 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Header;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.serde.annotation.Serdeable;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -13,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 
 @Client("twitch-id")
 public interface TwitchIdClient {
+  @Retryable
   @Post(
     value = "/oauth2/token",
     produces = "application/json",
@@ -22,6 +24,7 @@ public interface TwitchIdClient {
     @Body Map<String, String> request
   );
 
+  @Retryable
   @Get(value = "/oauth2/validate", produces = "application/json")
   public CompletableFuture<ValidationResponse> validate(
     @Header("Authorization") String auth

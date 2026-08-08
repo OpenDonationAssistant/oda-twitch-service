@@ -18,7 +18,6 @@ import io.swagger.v3.oas.annotations.info.*;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 @OpenAPIDefinition(info = @Info(title = "oda-twitch-service"))
