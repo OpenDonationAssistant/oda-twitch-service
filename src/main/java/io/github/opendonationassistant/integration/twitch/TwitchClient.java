@@ -20,6 +20,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
@@ -236,7 +237,14 @@ public class TwitchClient {
       tokenRPC.token(new TokenRequest(recipientId, refreshTokenId))
     ).thenCompose(token -> {
       if (token == null || token.token() == null) {
-        throw Problem.builder().withTitle("Unauthorized").build();
+        return CompletableFuture.failedFuture(
+          Problem.builder()
+            .withTitle("Unauthorized")
+            .withDetail(
+              Optional.ofNullable(token.message()).orElse("Unauthorized")
+            )
+            .build()
+        );
       }
       var authHeader = "Bearer %s".formatted(token.token());
       return fn.apply(authHeader);
