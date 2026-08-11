@@ -164,7 +164,7 @@ public class TwitchClient {
     );
   }
 
-  public CompletableFuture<Void> pinChatMessage(
+  public CompletableFuture<DataWrapper<Void>> pinChatMessage(
     String recipientId,
     String refreshTokenId,
     String broadcasterId,
@@ -196,8 +196,11 @@ public class TwitchClient {
           api.createCustomReward(clientId, auth, account.twitchId(), request)
         )
       )
+      // TODO or throw error
       .orElseGet(() ->
-        CompletableFuture.completedFuture(new DataWrapper<>(List.of()))
+        CompletableFuture.completedFuture(
+          new DataWrapper<>(List.of(), null, null, 200)
+        )
       );
   }
 

@@ -1,5 +1,6 @@
 package io.github.opendonationassistant.twitch.listener.handler;
 
+import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.DataWrapper;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageRequest;
@@ -12,6 +13,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Singleton
 public class SendAndPinChatMessageHandler
@@ -19,6 +22,7 @@ public class SendAndPinChatMessageHandler
     SendAndPinChatMessageHandler.SendAndPinChatMessageCommand
   > {
 
+  private ODALogger log = new ODALogger(this);
   private final TwitchClient twitch;
   private final TwitchAccountRepository repository;
 
@@ -54,6 +58,26 @@ public class SendAndPinChatMessageHandler
       )
       .join();
 
+    log.debug("sendResponse", Map.of("response", sendResponse));
+    if (sendResponse.error() != null) {
+      log.error(
+        "Failed to send message",
+        Map.of(
+          "recipientId",
+          message.recipientId(),
+          "senderRefreshTokenId",
+          message.senderRefreshTokenId(),
+          "recipientTwitchId",
+          message.recipientTwitchId(),
+          "message",
+          message.message(),
+          "error",
+          sendResponse.error(),
+          "errorMessage",
+          Optional.ofNullable(sendResponse.message()).orElse("")
+        )
+      );
+    }
     if (sendResponse.data() == null || sendResponse.data().isEmpty()) {
       return;
     }
@@ -61,7 +85,7 @@ public class SendAndPinChatMessageHandler
     if (!sent.isSent()) {
       return;
     }
-    twitch
+    var pinResponse = twitch
       .pinChatMessage(
         message.recipientId(),
         message.senderRefreshTokenId(),
@@ -71,6 +95,25 @@ public class SendAndPinChatMessageHandler
         null
       )
       .join();
+    if (pinResponse.error() != null) {
+      log.error(
+        "Failed to pin message",
+        Map.of(
+          "recipientId",
+          message.recipientId(),
+          "senderRefreshTokenId",
+          message.senderRefreshTokenId(),
+          "recipientTwitchId",
+          message.recipientTwitchId(),
+          "message",
+          message.message(),
+          "error",
+          sendResponse.error(),
+          "errorMessage",
+          Optional.ofNullable(sendResponse.message()).orElse("")
+        )
+      );
+    }
   }
 
   @Serdeable

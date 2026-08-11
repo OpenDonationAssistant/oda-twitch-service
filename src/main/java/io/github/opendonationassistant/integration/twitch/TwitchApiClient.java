@@ -19,7 +19,6 @@ import org.jspecify.annotations.Nullable;
 
 @Client("twitch-api")
 public interface TwitchApiClient {
-
   @Retryable
   @Post("/helix/eventsub/subscriptions")
   public CompletableFuture<DataWrapper<Subscription[]>> subscribe(
@@ -81,7 +80,7 @@ public interface TwitchApiClient {
 
   @Retryable
   @Put("/helix/chat/pins")
-  CompletableFuture<Void> pinChatMessage(
+  CompletableFuture<DataWrapper<Void>> pinChatMessage(
     @Header("Client-Id") String clientId,
     @Header("Authorization") String auth,
     @QueryValue("broadcaster_id") String broadcasterId,
@@ -146,7 +145,12 @@ public interface TwitchApiClient {
   public static record SubscribeResponse(Integer total) {}
 
   @Serdeable
-  public static record DataWrapper<T>(T data) {}
+  public static record DataWrapper<T>(
+    @Nullable T data,
+    @Nullable String error,
+    @Nullable String message,
+    @Nullable Integer status
+  ) {}
 
   @Serdeable
   public static record GetUserResponse(
@@ -184,8 +188,9 @@ public interface TwitchApiClient {
     @JsonProperty("is_enabled") Boolean isEnabled,
     @JsonProperty("is_paused") Boolean isPaused,
     @JsonProperty("is_in_stock") Boolean isInStock,
-    @JsonProperty("should_redemptions_skip_request_queue")
-      Boolean shouldRedemptionsSkipRequestQueue,
+    @JsonProperty(
+      "should_redemptions_skip_request_queue"
+    ) Boolean shouldRedemptionsSkipRequestQueue,
     @Nullable String prompt,
     @JsonProperty("is_user_input_required") Boolean isUserInputRequired,
     @JsonProperty("background_color") String backgroundColor
@@ -198,16 +203,28 @@ public interface TwitchApiClient {
     @Nullable String prompt,
     @Nullable @JsonProperty("is_enabled") Boolean isEnabled,
     @Nullable @JsonProperty("background_color") String backgroundColor,
-    @Nullable @JsonProperty("is_user_input_required") Boolean isUserInputRequired,
-    @Nullable @JsonProperty("is_max_per_stream_enabled") Boolean isMaxPerStreamEnabled,
+    @Nullable @JsonProperty(
+      "is_user_input_required"
+    ) Boolean isUserInputRequired,
+    @Nullable @JsonProperty(
+      "is_max_per_stream_enabled"
+    ) Boolean isMaxPerStreamEnabled,
     @Nullable @JsonProperty("max_per_stream") Integer maxPerStream,
-    @Nullable @JsonProperty("is_max_per_user_per_stream_enabled")
-      Boolean isMaxPerUserPerStreamEnabled,
-    @Nullable @JsonProperty("max_per_user_per_stream") Integer maxPerUserPerStream,
-    @Nullable @JsonProperty("is_global_cooldown_enabled") Boolean isGlobalCooldownEnabled,
-    @Nullable @JsonProperty("global_cooldown_seconds") Integer globalCooldownSeconds,
-    @Nullable @JsonProperty("should_redemptions_skip_request_queue")
-      Boolean shouldRedemptionsSkipRequestQueue
+    @Nullable @JsonProperty(
+      "is_max_per_user_per_stream_enabled"
+    ) Boolean isMaxPerUserPerStreamEnabled,
+    @Nullable @JsonProperty(
+      "max_per_user_per_stream"
+    ) Integer maxPerUserPerStream,
+    @Nullable @JsonProperty(
+      "is_global_cooldown_enabled"
+    ) Boolean isGlobalCooldownEnabled,
+    @Nullable @JsonProperty(
+      "global_cooldown_seconds"
+    ) Integer globalCooldownSeconds,
+    @Nullable @JsonProperty(
+      "should_redemptions_skip_request_queue"
+    ) Boolean shouldRedemptionsSkipRequestQueue
   ) {}
 
   @Serdeable
@@ -217,16 +234,28 @@ public interface TwitchApiClient {
     @Nullable String prompt,
     @Nullable @JsonProperty("is_enabled") Boolean isEnabled,
     @Nullable @JsonProperty("background_color") String backgroundColor,
-    @Nullable @JsonProperty("is_user_input_required") Boolean isUserInputRequired,
-    @Nullable @JsonProperty("is_max_per_stream_enabled") Boolean isMaxPerStreamEnabled,
+    @Nullable @JsonProperty(
+      "is_user_input_required"
+    ) Boolean isUserInputRequired,
+    @Nullable @JsonProperty(
+      "is_max_per_stream_enabled"
+    ) Boolean isMaxPerStreamEnabled,
     @Nullable @JsonProperty("max_per_stream") Integer maxPerStream,
-    @Nullable @JsonProperty("is_max_per_user_per_stream_enabled")
-      Boolean isMaxPerUserPerStreamEnabled,
-    @Nullable @JsonProperty("max_per_user_per_stream") Integer maxPerUserPerStream,
-    @Nullable @JsonProperty("is_global_cooldown_enabled") Boolean isGlobalCooldownEnabled,
-    @Nullable @JsonProperty("global_cooldown_seconds") Integer globalCooldownSeconds,
-    @Nullable @JsonProperty("should_redemptions_skip_request_queue")
-      Boolean shouldRedemptionsSkipRequestQueue,
+    @Nullable @JsonProperty(
+      "is_max_per_user_per_stream_enabled"
+    ) Boolean isMaxPerUserPerStreamEnabled,
+    @Nullable @JsonProperty(
+      "max_per_user_per_stream"
+    ) Integer maxPerUserPerStream,
+    @Nullable @JsonProperty(
+      "is_global_cooldown_enabled"
+    ) Boolean isGlobalCooldownEnabled,
+    @Nullable @JsonProperty(
+      "global_cooldown_seconds"
+    ) Integer globalCooldownSeconds,
+    @Nullable @JsonProperty(
+      "should_redemptions_skip_request_queue"
+    ) Boolean shouldRedemptionsSkipRequestQueue,
     @Nullable @JsonProperty("is_paused") Boolean isPaused
   ) {}
 }

@@ -77,7 +77,26 @@ public class SubscribeEventsHandler
           )
         )
         .join();
-      var subscriptionId = response.data()[0].id();
+      if (response.error() != null) {
+        log.error(
+          "Error subscribing to twitch event",
+          Map.of(
+            "event",
+            command.event(),
+            "recipientId",
+            command.recipientId(),
+            "error",
+            response.error(),
+            "errorMessage",
+            Optional.ofNullable(response.message())
+          )
+        );
+      }
+      var data = response.data();
+      if (data == null || data.length == 0) {
+        return;
+      }
+      var subscriptionId = data[0].id();
       webhookRepository
         .findByRecipientIdAndRefreshTokenId(
           command.recipientId(),
@@ -118,12 +137,7 @@ public class SubscribeEventsHandler
       ) {
         log.info(
           "Duplicate subscription",
-          Map.of(
-            "event",
-            command.event(),
-            "recipientId",
-            command.recipientId()
-          )
+          Map.of("event", command.event(), "recipientId", command.recipientId())
         );
         return;
       }

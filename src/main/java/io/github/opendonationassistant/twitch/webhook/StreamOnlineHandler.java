@@ -39,8 +39,29 @@ public class StreamOnlineHandler implements TwitchEventHandler {
         "live"
       )
       .thenAccept(stream -> {
-        final Optional<TwitchApiClient.Stream> first = stream
-          .data()
+        if (stream.error() != null) {
+          log.error(
+            "Error while searching stream online",
+            Map.of(
+              "recipientId",
+              context.account().recipientId(),
+              "error",
+              stream.error(),
+              "errorMessage",
+              stream.message()
+            )
+          );
+          return;
+        }
+        var data = stream.data();
+        if (data == null || data.isEmpty()) {
+          log.error(
+            "Could find stream online",
+            Map.of("recipientId", context.account().recipientId())
+          );
+          return;
+        }
+        final Optional<TwitchApiClient.Stream> first = data
           .stream()
           .findFirst();
         first

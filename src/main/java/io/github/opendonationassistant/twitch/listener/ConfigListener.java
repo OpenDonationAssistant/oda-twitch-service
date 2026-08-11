@@ -106,7 +106,10 @@ public class ConfigListener
       properties,
       system + "PointsRequestsEnabled"
     );
-    log.info("music-" + system + "-request-title: " + enabled, Map.of("recipientId", account.recipientId(), "widgetId", widgetId));
+    log.info(
+      "music-" + system + "-request-title: " + enabled,
+      Map.of("recipientId", account.recipientId(), "widgetId", widgetId)
+    );
     if (!enabled) {
       return;
     }
@@ -115,7 +118,10 @@ public class ConfigListener
       properties,
       "music-" + system + "-request-title"
     );
-    log.info("music-" + system + "-request-title: " + title, Map.of("recipientId", account.recipientId(), "widgetId", widgetId));
+    log.info(
+      "music-" + system + "-request-title: " + title,
+      Map.of("recipientId", account.recipientId(), "widgetId", widgetId)
+    );
     if (title == null) {
       return;
     }
@@ -123,7 +129,10 @@ public class ConfigListener
       properties,
       "music-" + system + "-request-cost"
     );
-    log.info("music-" + system + "-request-cost: " + cost, Map.of("recipientId", account.recipientId(), "widgetId", widgetId));
+    log.info(
+      "music-" + system + "-request-cost: " + cost,
+      Map.of("recipientId", account.recipientId(), "widgetId", widgetId)
+    );
     if (cost == null) {
       return;
     }
@@ -158,7 +167,7 @@ public class ConfigListener
             .join();
         },
         () -> {
-          twitch
+          var response = twitch
             .createCustomReward(
               account.recipientId(),
               account.refreshTokenId(),
@@ -178,19 +187,37 @@ public class ConfigListener
                 null
               )
             )
-            .join()
-            .data()
-            .forEach(reward -> {
-              rewardRepository.create(
-                new TwitchRewardData(
-                  reward.id(),
-                  account.recipientId(),
-                  account.refreshTokenId(),
-                  widgetId,
-                  "music"
-                )
-              );
-            });
+            .join();
+          if (response.error() != null) {
+            log.error(
+              "Failed to create reward",
+              Map.of(
+                "recipientId",
+                account.recipientId(),
+                "refreshTokenId",
+                account.refreshTokenId(),
+                "error",
+                response.error(),
+                "errorMessage",
+                Optional.ofNullable(response.message()).orElse("")
+              )
+            );
+          }
+          var data = response.data();
+          if (data == null) {
+            return;
+          }
+          data.forEach(reward -> {
+            rewardRepository.create(
+              new TwitchRewardData(
+                reward.id(),
+                account.recipientId(),
+                account.refreshTokenId(),
+                widgetId,
+                "music"
+              )
+            );
+          });
         }
       );
   }
