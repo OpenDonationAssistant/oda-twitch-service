@@ -20,13 +20,16 @@ import jakarta.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Map;
 
-@OpenAPIDefinition(info = @Info(title = "oda-twitch-service",
+@OpenAPIDefinition(
+  info = @Info(
+    title = "oda-twitch-service",
     version = "0.1.0",
     license = @License(
       name = "AGPL-3.0",
       url = "https://www.gnu.org/licenses/agpl-3.0.en.html"
     )
-))
+  )
+)
 @Factory
 public class Application {
 

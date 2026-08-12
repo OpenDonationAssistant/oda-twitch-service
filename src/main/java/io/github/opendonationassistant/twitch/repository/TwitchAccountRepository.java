@@ -37,6 +37,6 @@ public class TwitchAccountRepository {
   public Optional<TwitchAccountData> findByRefreshTokenId(
     String refreshTokenId
   ) {
-    return repository.findByRecipientId(refreshTokenId);
+    return repository.findByRefreshTokenId(refreshTokenId);
   }
 }
