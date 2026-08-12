@@ -1,5 +1,6 @@
 package io.github.opendonationassistant.twitch.listener.handler;
 
+import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
@@ -8,6 +9,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.io.IOException;
+import java.util.Map;
 
 @Singleton
 public class SendTwitchShoutoutHandler
@@ -15,6 +17,7 @@ public class SendTwitchShoutoutHandler
     SendTwitchShoutoutHandler.TwitchShoutoutCommand
   > {
 
+  private ODALogger log = new ODALogger(this);
   private final TwitchClient twitch;
   private final TwitchAccountRepository repository;
 
@@ -33,6 +36,10 @@ public class SendTwitchShoutoutHandler
   public void handle(TwitchShoutoutCommand message) throws IOException {
     var account = repository.findByRecipientId(message.recipientId());
     if (account.isEmpty()) {
+      log.warn(
+        "Account not found",
+        Map.of("recipientId", message.recipientId())
+      );
       return;
     }
     var refreshTokenId = account.get().refreshTokenId();

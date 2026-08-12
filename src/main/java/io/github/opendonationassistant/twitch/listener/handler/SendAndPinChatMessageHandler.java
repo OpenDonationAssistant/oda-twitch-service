@@ -43,6 +43,10 @@ public class SendAndPinChatMessageHandler
       message.senderRefreshTokenId()
     );
     if (account.isEmpty()) {
+      log.warn(
+        "Account not found",
+        Map.of("refreshTokenId", message.senderRefreshTokenId())
+      );
       return;
     }
 
