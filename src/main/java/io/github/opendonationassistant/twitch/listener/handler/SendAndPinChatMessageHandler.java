@@ -50,22 +50,78 @@ public class SendAndPinChatMessageHandler
       return;
     }
 
-    final DataWrapper<List<SendChatMessageResponse>> sendResponse = twitch
-      .sendChatMessage(
-        message.recipientId(),
-        message.senderRefreshTokenId(),
-        new SendChatMessageRequest(
+    try {
+      final DataWrapper<List<SendChatMessageResponse>> sendResponse = twitch
+        .sendChatMessage(
+          message.recipientId(),
+          message.senderRefreshTokenId(),
+          new SendChatMessageRequest(
+            message.recipientTwitchId(),
+            account.get().twitchId(),
+            message.message()
+          )
+        )
+        .join();
+
+      log.debug("sendResponse", Map.of("response", sendResponse));
+      if (sendResponse.error() != null) {
+        log.error(
+          "Failed to send message",
+          Map.of(
+            "recipientId",
+            message.recipientId(),
+            "senderRefreshTokenId",
+            message.senderRefreshTokenId(),
+            "recipientTwitchId",
+            message.recipientTwitchId(),
+            "message",
+            message.message(),
+            "error",
+            sendResponse.error(),
+            "errorMessage",
+            Optional.ofNullable(sendResponse.message()).orElse("")
+          )
+        );
+      }
+      if (sendResponse.data() == null || sendResponse.data().isEmpty()) {
+        return;
+      }
+      var sent = sendResponse.data().getFirst();
+      if (!sent.isSent()) {
+        return;
+      }
+      var pinResponse = twitch
+        .pinChatMessage(
+          message.recipientId(),
+          message.senderRefreshTokenId(),
           message.recipientTwitchId(),
           account.get().twitchId(),
-          message.message()
+          sent.messageId(),
+          null
         )
-      )
-      .join();
-
-    log.debug("sendResponse", Map.of("response", sendResponse));
-    if (sendResponse.error() != null) {
+        .join();
+      if (pinResponse.error() != null) {
+        log.error(
+          "Failed to pin message",
+          Map.of(
+            "recipientId",
+            message.recipientId(),
+            "senderRefreshTokenId",
+            message.senderRefreshTokenId(),
+            "recipientTwitchId",
+            message.recipientTwitchId(),
+            "message",
+            message.message(),
+            "error",
+            sendResponse.error(),
+            "errorMessage",
+            Optional.ofNullable(sendResponse.message()).orElse("")
+          )
+        );
+      }
+    } catch (Exception e) {
       log.error(
-        "Failed to send message",
+        "Failed to execute SendAndPinChatMessageCommand",
         Map.of(
           "recipientId",
           message.recipientId(),
@@ -76,45 +132,7 @@ public class SendAndPinChatMessageHandler
           "message",
           message.message(),
           "error",
-          sendResponse.error(),
-          "errorMessage",
-          Optional.ofNullable(sendResponse.message()).orElse("")
-        )
-      );
-    }
-    if (sendResponse.data() == null || sendResponse.data().isEmpty()) {
-      return;
-    }
-    var sent = sendResponse.data().getFirst();
-    if (!sent.isSent()) {
-      return;
-    }
-    var pinResponse = twitch
-      .pinChatMessage(
-        message.recipientId(),
-        message.senderRefreshTokenId(),
-        message.recipientTwitchId(),
-        account.get().twitchId(),
-        sent.messageId(),
-        null
-      )
-      .join();
-    if (pinResponse.error() != null) {
-      log.error(
-        "Failed to pin message",
-        Map.of(
-          "recipientId",
-          message.recipientId(),
-          "senderRefreshTokenId",
-          message.senderRefreshTokenId(),
-          "recipientTwitchId",
-          message.recipientTwitchId(),
-          "message",
-          message.message(),
-          "error",
-          sendResponse.error(),
-          "errorMessage",
-          Optional.ofNullable(sendResponse.message()).orElse("")
+          e.getMessage()
         )
       );
     }
