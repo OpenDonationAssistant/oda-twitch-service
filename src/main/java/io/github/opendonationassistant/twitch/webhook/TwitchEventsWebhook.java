@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 import io.github.opendonationassistant.commons.logging.ODALogger;
+import io.github.opendonationassistant.twitch.metrics.TwitchMetrics;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
@@ -29,14 +30,17 @@ public class TwitchEventsWebhook {
     Generators.timeBasedEpochGenerator();
   private final TwitchAccountRepository repository;
   private final List<TwitchEventHandler> handlers;
+  private final TwitchMetrics metrics;
 
   @Inject
   public TwitchEventsWebhook(
     TwitchAccountRepository repository,
-    List<TwitchEventHandler> handlers
+    List<TwitchEventHandler> handlers,
+    TwitchMetrics metrics
   ) {
     this.repository = repository;
     this.handlers = handlers;
+    this.metrics = metrics;
   }
 
   @Post("/twitch/events")
@@ -58,6 +62,7 @@ public class TwitchEventsWebhook {
             .orElseGet(() -> HttpResponse.ok())
         );
       case "notification":
+        metrics.eventReceived(message.subscription.type);
         return Optional.ofNullable(
           message.subscription().condition().get("broadcaster_user_id")
         )
@@ -76,14 +81,21 @@ public class TwitchEventsWebhook {
               .stream()
               .filter(h -> h.canHandle(message.subscription.type))
               .findFirst()
-              .map(h -> h.handle(context))
-              .orElseGet(() -> CompletableFuture.completedFuture(null));
+              .map(h -> {
+                metrics.eventHandled(message.subscription.type);
+                return h.handle(context);
+              })
+              .orElseGet(() -> {
+                metrics.eventUnhandled(message.subscription.type);
+                return CompletableFuture.completedFuture(null);
+              });
           })
           .orElseGet(() -> {
             log.info(
               "No account found for user in webhook",
               Map.of("message", message)
             );
+            metrics.eventNoAccount(message.subscription.type);
             return CompletableFuture.completedFuture(null);
           })
           .thenApply(response -> HttpResponse.ok(""));
