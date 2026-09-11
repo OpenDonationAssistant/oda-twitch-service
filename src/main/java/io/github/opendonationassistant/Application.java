@@ -65,6 +65,8 @@ public class Application {
           "command.SendAndPinChatMessageCommand",
           CommandListener.QUEUE,
           "command.TwitchShoutoutCommand",
+          CommandListener.QUEUE,
+          "command.TwitchAnnounceCommand",
           CommandListener.QUEUE
         )
       )

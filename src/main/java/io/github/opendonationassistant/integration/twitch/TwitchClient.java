@@ -4,6 +4,7 @@ import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Create
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.CustomReward;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.DataWrapper;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.GetUserResponse;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendAnnouncementRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageResponse;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Stream;
@@ -161,6 +162,25 @@ public class TwitchClient {
         fromBroadcasterId,
         toBroadcasterId,
         moderatorId
+      )
+    );
+  }
+
+  public CompletableFuture<Void> sendAnnouncement(
+    String recipientId,
+    String refreshTokenId,
+    String broadcasterId,
+    String moderatorId,
+    String message,
+    @Nullable String color
+  ) {
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.sendAnnouncement(
+        clientId,
+        auth,
+        broadcasterId,
+        moderatorId,
+        new SendAnnouncementRequest(message, color)
       )
     );
   }

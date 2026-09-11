@@ -79,6 +79,16 @@ public interface TwitchApiClient {
   );
 
   @Retryable
+  @Post("/helix/chat/announcements")
+  CompletableFuture<Void> sendAnnouncement(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("broadcaster_id") String broadcasterId,
+    @QueryValue("moderator_id") String moderatorId,
+    @Body SendAnnouncementRequest request
+  );
+
+  @Retryable
   @Put("/helix/chat/pins")
   CompletableFuture<DataWrapper<Void>> pinChatMessage(
     @Header("Client-Id") String clientId,
@@ -175,6 +185,12 @@ public interface TwitchApiClient {
   public static record SendChatMessageResponse(
     @JsonProperty("message_id") String messageId,
     @JsonProperty("is_sent") boolean isSent
+  ) {}
+
+  @Serdeable
+  public static record SendAnnouncementRequest(
+    String message,
+    @Nullable String color
   ) {}
 
   @Serdeable
