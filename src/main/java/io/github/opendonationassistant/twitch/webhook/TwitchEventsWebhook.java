@@ -48,6 +48,7 @@ public class TwitchEventsWebhook {
   @Operation(hidden = true)
   public CompletableFuture<HttpResponse<String>> twitchWebhook(
     @Header("Twitch-Eventsub-Message-Type") String type,
+    @Header("Twitch-Eventsub-Message-Id") @Nullable String messageId,
     @Body Message message
   ) {
     log.debug(
@@ -76,7 +77,13 @@ public class TwitchEventsWebhook {
             final Optional<Event> event = Optional.ofNullable(message.event());
             String username = event.map(it -> it.userName()).orElse("");
             var id = uuid.generate().toString();
-            var context = new EventContext(id, account, username, event);
+            var context = new EventContext(
+              id,
+              messageId,
+              account,
+              username,
+              event
+            );
             return handlers
               .stream()
               .filter(h -> h.canHandle(message.subscription.type))
@@ -120,6 +127,7 @@ public class TwitchEventsWebhook {
 
   @Serdeable
   public static record Event(
+    @Nullable @JsonProperty("id") String id,
     @Nullable @JsonProperty("broadcaster_user_id") String broadcasterId,
     @Nullable @JsonProperty("user_name") String userName,
     @Nullable @JsonProperty("tier") String tier,
@@ -150,13 +158,5 @@ public class TwitchEventsWebhook {
     String title,
     Integer cost,
     @Nullable String prompt
-  ) {}
-
-  @Serdeable
-  public static record AddMediaCommand(
-    String url,
-    String requester,
-    String recipientId,
-    String system
   ) {}
 }

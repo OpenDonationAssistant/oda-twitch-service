@@ -4,13 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.CreateCustomRewardRequest;
@@ -24,16 +22,13 @@ import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Stream
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Subscription;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Transport;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateRedemptionStatusRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
 import io.github.opendonationassistant.rabbit.TokenRPC;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenResponse;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +43,6 @@ public class TwitchClientTest {
   private TwitchApiClient api;
   private TwitchIdClient id;
   private TokenRPC tokenRPC;
-  private TwitchAccountRepository accounts;
   private TwitchClient client;
 
   @BeforeEach
@@ -56,8 +50,7 @@ public class TwitchClientTest {
     api = mock(TwitchApiClient.class);
     id = mock(TwitchIdClient.class);
     tokenRPC = mock(TokenRPC.class);
-    accounts = mock(TwitchAccountRepository.class);
-    client = new TwitchClient(api, id, tokenRPC, accounts, CLIENT_ID, CLIENT_SECRET);
+    client = new TwitchClient(api, id, tokenRPC, CLIENT_ID, CLIENT_SECRET);
   }
 
   private void givenAppToken(String value) {
@@ -258,6 +251,43 @@ public class TwitchClientTest {
   }
 
   @Test
+  public void updateRedemptionStatusUsesUserTokenAndPassesIdentifiers() {
+    givenUserToken("user-token");
+    when(
+      api.updateRedemptionStatus(
+        eq(CLIENT_ID),
+        eq("Bearer user-token"),
+        eq("b-1"),
+        eq("reward-1"),
+        eq("redemption-1"),
+        eq(new UpdateRedemptionStatusRequest("CANCELED"))
+      )
+    ).thenReturn(CompletableFuture.<Void>completedFuture(null));
+
+    client
+      .updateRedemptionStatus(
+        "rec-1",
+        "rt-1",
+        "b-1",
+        "reward-1",
+        "redemption-1",
+        "CANCELED"
+      )
+      .join();
+
+    verify(tokenRPC).token(new TokenRequest("rec-1", "rt-1"));
+    verify(api)
+      .updateRedemptionStatus(
+        CLIENT_ID,
+        "Bearer user-token",
+        "b-1",
+        "reward-1",
+        "redemption-1",
+        new UpdateRedemptionStatusRequest("CANCELED")
+      );
+  }
+
+  @Test
   public void sendShoutoutPassesIdentifiersToApi() {
     givenUserToken("user-token");
     when(
@@ -318,23 +348,7 @@ public class TwitchClientTest {
   }
 
   @Test
-  public void createCustomRewardReturnsEmptyResponseWhenAccountMissing() {
-    when(accounts.findByRecipientId("rec-1")).thenReturn(Optional.empty());
-    var request = createRewardRequest();
-
-    var result = client.createCustomReward("rec-1", "rt-1", request).join();
-
-    assertTrue(Objects.requireNonNull(result.data()).isEmpty());
-    assertEquals(200, result.status());
-    verifyNoInteractions(api);
-  }
-
-  @Test
-  public void createCustomRewardSendsAccountTwitchIdAsBroadcaster() {
-    when(accounts.findByRecipientId("rec-1"))
-      .thenReturn(
-        Optional.of(new TwitchAccountData("rec-1", "tw-1", "login", "rt-1"))
-      );
+  public void createCustomRewardSendsBroadcasterIdAsProvidedByCaller() {
     givenUserToken("user-token");
     var request = createRewardRequest();
     when(
@@ -350,7 +364,7 @@ public class TwitchClientTest {
       )
     );
 
-    client.createCustomReward("rec-1", "rt-1", request).join();
+    client.createCustomReward("rec-1", "rt-1", "tw-1", request).join();
 
     verify(api).createCustomReward(CLIENT_ID, "Bearer user-token", "tw-1", request);
   }

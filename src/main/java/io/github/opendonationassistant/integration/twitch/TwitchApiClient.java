@@ -127,6 +127,20 @@ public interface TwitchApiClient {
     @QueryValue("id") String id
   );
 
+  @Retryable
+  @Patch("/helix/channel_points/custom_rewards/redemptions")
+  CompletableFuture<Void> updateRedemptionStatus(
+    @Header("Client-Id") String clientId,
+    @Header("Authorization") String auth,
+    @QueryValue("broadcaster_id") String broadcasterId,
+    @QueryValue("reward_id") String rewardId,
+    @QueryValue("id") String redemptionId,
+    @Body UpdateRedemptionStatusRequest request
+  );
+
+  @Serdeable
+  public static record UpdateRedemptionStatusRequest(String status) {}
+
   @Serdeable
   public static record SubscribeRequest(
     String type,

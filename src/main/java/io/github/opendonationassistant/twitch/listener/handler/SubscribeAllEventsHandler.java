@@ -4,10 +4,8 @@ import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.events.AbstractMessageHandler;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
 import io.github.opendonationassistant.rabbit.RabbitClient;
-import io.github.opendonationassistant.rabbit.TokenRPC;
-import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
 import io.github.opendonationassistant.twitch.listener.handler.SubscribeEventsHandler.SubcribeTwitchEventsCommand;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
+import io.github.opendonationassistant.twitch.repository.TwitchAccount;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.serde.ObjectMapper;
@@ -88,7 +86,7 @@ public class SubscribeAllEventsHandler
       .accessToken();
     var twitchId = repository
       .findByRecipientId(message.recipientId())
-      .map(TwitchAccountData::twitchId);
+      .map(TwitchAccount::twitchId);
     twitchId.ifPresentOrElse(
       id ->
         events.forEach(event -> {

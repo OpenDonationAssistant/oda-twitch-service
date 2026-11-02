@@ -8,17 +8,15 @@ import io.github.opendonationassistant.integration.twitch.TwitchApiClient;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateCustomRewardRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
 import io.github.opendonationassistant.rabbit.Exchange;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
+import io.github.opendonationassistant.twitch.repository.TwitchAccount;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardData;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardDataRepository;
-import io.github.opendonationassistant.twitch.repository.TwitchRewardRepository;
 import io.micronaut.rabbitmq.annotation.Queue;
 import io.micronaut.rabbitmq.annotation.RabbitListener;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -42,14 +40,14 @@ public class ConfigListener
 
   private final TimeBasedEpochGenerator uuid =
     Generators.timeBasedEpochGenerator();
-  private final TwitchRewardRepository rewardRepository;
+  private final TwitchRewardDataRepository rewardRepository;
   private final TwitchAccountRepository accountRepository;
   private final TwitchClient twitch;
 
   @Inject
   public ConfigListener(
     ObjectMapper mapper,
-    TwitchRewardRepository rewardRepository,
+    TwitchRewardDataRepository rewardRepository,
     TwitchAccountRepository accountRepository,
     TwitchClient twitch
   ) {
@@ -99,9 +97,8 @@ public class ConfigListener
     String widgetId,
     List<WidgetProperty> properties,
     String system,
-    TwitchAccountData account
+    TwitchAccount account
   ) {
-    var refreshTokenId = account.refreshTokenId();
     var enabled = findBoolProperty(
       properties,
       system + "PointsRequestsEnabled"
@@ -138,7 +135,7 @@ public class ConfigListener
     }
 
     rewardRepository
-      .findByWidgetId(widgetId)
+      .findOneByWidgetId(widgetId)
       .ifPresentOrElse(
         reward -> {
           twitch
@@ -146,7 +143,7 @@ public class ConfigListener
               account.recipientId(),
               account.refreshTokenId(),
               account.twitchId(),
-              reward.data().id(),
+              reward.id(),
               new UpdateCustomRewardRequest(
                 title,
                 cost,
@@ -171,6 +168,7 @@ public class ConfigListener
             .createCustomReward(
               account.recipientId(),
               account.refreshTokenId(),
+              account.twitchId(),
               new TwitchApiClient.CreateCustomRewardRequest(
                 title,
                 cost,
@@ -208,7 +206,7 @@ public class ConfigListener
             return;
           }
           data.forEach(reward -> {
-            rewardRepository.create(
+            rewardRepository.save(
               new TwitchRewardData(
                 reward.id(),
                 account.recipientId(),

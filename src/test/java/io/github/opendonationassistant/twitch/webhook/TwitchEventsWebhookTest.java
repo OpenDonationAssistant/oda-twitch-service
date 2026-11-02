@@ -7,7 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.opendonationassistant.twitch.metrics.TwitchMetrics;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountFixture;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micronaut.http.HttpResponse;
@@ -32,6 +32,7 @@ public class TwitchEventsWebhookTest {
     final HttpResponse<String> actual = webhook
       .twitchWebhook(
         "webhook_callback_verification",
+        "message-1",
         new TwitchEventsWebhook.Message(
           "challenge",
           new TwitchEventsWebhook.Subscription("type", Map.of()),
@@ -53,9 +54,7 @@ public class TwitchEventsWebhookTest {
     when(handler.handle(any())).thenReturn(CompletableFuture.completedFuture(null));
     when(repository.findByTwitchId("123"))
       .thenReturn(
-        Optional.of(
-          new TwitchAccountData("recipient", "123", "login", "token")
-        )
+        Optional.of(TwitchAccountFixture.account())
       );
     TwitchEventsWebhook webhook = new TwitchEventsWebhook(
       repository,
@@ -66,6 +65,7 @@ public class TwitchEventsWebhookTest {
     webhook
       .twitchWebhook(
         "notification",
+        "message-1",
         new TwitchEventsWebhook.Message(
           null,
           new TwitchEventsWebhook.Subscription(
@@ -105,9 +105,7 @@ public class TwitchEventsWebhookTest {
     var metrics = new TwitchMetrics(registry);
     when(repository.findByTwitchId("123"))
       .thenReturn(
-        Optional.of(
-          new TwitchAccountData("recipient", "123", "login", "token")
-        )
+        Optional.of(TwitchAccountFixture.account())
       );
     TwitchEventsWebhook webhook = new TwitchEventsWebhook(
       repository,
@@ -118,6 +116,7 @@ public class TwitchEventsWebhookTest {
     webhook
       .twitchWebhook(
         "notification",
+        "message-1",
         new TwitchEventsWebhook.Message(
           null,
           new TwitchEventsWebhook.Subscription(
@@ -155,6 +154,7 @@ public class TwitchEventsWebhookTest {
     webhook
       .twitchWebhook(
         "notification",
+        "message-1",
         new TwitchEventsWebhook.Message(
           null,
           new TwitchEventsWebhook.Subscription(

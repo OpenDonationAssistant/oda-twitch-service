@@ -22,5 +22,5 @@ Declarative Micronaut HTTP clients for the Twitch Helix API (`twitch-api`) and I
 - Do NOT call `TwitchApiClient`/`TwitchIdClient` directly from handlers — always via `TwitchClient`.
 
 ## NOTES
-- Known TODO: `createCustomReward` returns an empty 200 `DataWrapper` when the account is missing instead of throwing.
+- `createCustomReward` takes the broadcaster id from the caller (the linked `TwitchAccount`); `TwitchClient` no longer looks up accounts itself.
 - `TwitchApiClient` is the largest file in the project (~260 LOC) — keep new endpoints declarative, no imperative HTTP.

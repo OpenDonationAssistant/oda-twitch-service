@@ -6,7 +6,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountFixture;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.serde.ObjectMapper;
 import java.io.IOException;
@@ -29,7 +29,7 @@ public class SendTwitchShoutoutHandlerTest {
   @Test
   public void sendsShoutoutFromLinkedAccount() throws IOException {
     when(repository.findByRecipientId("rec")).thenReturn(
-      Optional.of(new TwitchAccountData("rec", "tw-1", "login", "rt-1"))
+      Optional.of(TwitchAccountFixture.account("rec", "tw-1", "login", "rt-1"))
     );
     when(
       twitch.sendShoutout("rec", "rt-1", "tw-1", "target-1", "tw-1")

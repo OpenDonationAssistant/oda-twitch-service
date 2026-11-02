@@ -11,11 +11,11 @@ import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Stream
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SubscribeRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Subscription;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateCustomRewardRequest;
+import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateRedemptionStatusRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.ValidationResponse;
 import io.github.opendonationassistant.rabbit.TokenRPC;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -35,14 +35,12 @@ public class TwitchClient {
   private final String clientId;
   private final String clientSecret;
   private final TokenRPC tokenRPC;
-  private final TwitchAccountRepository accountRepository;
 
   @Inject
   public TwitchClient(
     TwitchApiClient api,
     TwitchIdClient id,
     TokenRPC tokenRPC,
-    TwitchAccountRepository accountRepository,
     @Value("${twitch.client.id}") String clientId,
     @Value("${twitch.client.secret}") String clientSecret
   ) {
@@ -51,7 +49,6 @@ public class TwitchClient {
     this.tokenRPC = tokenRPC;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
-    this.accountRepository = accountRepository;
   }
 
   public CompletableFuture<GetAccessRecordResponse> getToken(
@@ -208,21 +205,12 @@ public class TwitchClient {
   public CompletableFuture<DataWrapper<List<CustomReward>>> createCustomReward(
     String recipientId,
     String refreshTokenId,
+    String broadcasterId,
     CreateCustomRewardRequest request
   ) {
-    return accountRepository
-      .findByRecipientId(recipientId)
-      .map(account ->
-        runWithToken(recipientId, refreshTokenId, auth ->
-          api.createCustomReward(clientId, auth, account.twitchId(), request)
-        )
-      )
-      // TODO or throw error
-      .orElseGet(() ->
-        CompletableFuture.completedFuture(
-          new DataWrapper<>(List.of(), null, null, 200)
-        )
-      );
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.createCustomReward(clientId, auth, broadcasterId, request)
+    );
   }
 
   public CompletableFuture<DataWrapper<List<CustomReward>>> updateCustomReward(
@@ -245,6 +233,26 @@ public class TwitchClient {
   ) {
     return runWithToken(recipientId, refreshTokenId, auth ->
       api.deleteCustomReward(clientId, auth, broadcasterId, id)
+    );
+  }
+
+  public CompletableFuture<Void> updateRedemptionStatus(
+    String recipientId,
+    String refreshTokenId,
+    String broadcasterId,
+    String rewardId,
+    String redemptionId,
+    String status
+  ) {
+    return runWithToken(recipientId, refreshTokenId, auth ->
+      api.updateRedemptionStatus(
+        clientId,
+        auth,
+        broadcasterId,
+        rewardId,
+        redemptionId,
+        new UpdateRedemptionStatusRequest(status)
+      )
     );
   }
 

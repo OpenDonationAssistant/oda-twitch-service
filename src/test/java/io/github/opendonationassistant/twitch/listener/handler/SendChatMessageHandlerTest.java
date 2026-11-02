@@ -13,7 +13,8 @@ import io.github.opendonationassistant.integration.twitch.TwitchApiClient.DataWr
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageResponse;
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
+import io.github.opendonationassistant.twitch.repository.TwitchAccount;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountFixture;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.serde.ObjectMapper;
 import java.util.List;
@@ -23,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 public class SendChatMessageHandlerTest {
 
-  private static final TwitchAccountData ACCOUNT = new TwitchAccountData(
+  private static final TwitchAccount ACCOUNT = TwitchAccountFixture.account(
     "rec",
     "tw-sender",
     "login",

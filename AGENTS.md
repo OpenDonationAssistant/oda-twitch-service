@@ -36,7 +36,7 @@ oda-twitch-service/
 | Add an EventSub event handler | `twitch/webhook/` | implement `TwitchEventHandler` |
 | Add a command handler | `twitch/listener/handler/` | extend `AbstractMessageHandler<T>` |
 | Call Twitch Helix API | `integration/twitch/TwitchClient.java` | facade handles token RPC |
-| Persist accounts/webhooks/rewards | `twitch/repository/` | Data + DataRepository + facade |
+| Persist accounts/webhooks/rewards | `twitch/repository/` | Data + DataRepository, facade only for accounts/webhooks |
 | Add a DB column/table | `src/main/resources/db/migration/` | next `V{n}__*.sql` |
 | Add a metric | `twitch/metrics/TwitchMetrics.java` | Micrometer counters |
 | Change RabbitMQ wiring | `Application.java` | `@Factory` declares exchanges/queues |
@@ -56,14 +56,14 @@ oda-twitch-service/
 | `MessageProcessor` | external (oda-rabbit-conf) | — | handlers | Routes commands to typed handlers |
 | `TwitchAccountRepository` | `@Singleton` | twitch/repository | many | Account persistence facade |
 | `TwitchWebhookRepository` | `@Singleton` | twitch/repository | SubscribeEventsHandler | Webhook subscription persistence |
-| `TwitchRewardRepository` | `@Singleton` | twitch/repository | ConfigListener | Custom reward persistence |
+| `TwitchRewardDataRepository` | Micronaut Data | twitch/repository | TwitchAccount, ConfigListener | Reward row persistence |
 | `TwitchMetrics` | `@Singleton` | twitch/metrics | webhook | Micrometer counters |
 
 ## CONVENTIONS
 - **Constructor injection only** (`@Inject`), no field injection.
 - **DTOs are Java records** annotated `@Serdeable`; nullable fields marked `@Nullable` (JSpecify).
 - **NullAway is ERROR** on `io.github.opendonationassistant` (JSpecify mode) — nullness violations fail the build. Root package is `@NullUnmarked`.
-- **Data/Repository split**: `XxxData` record + `XxxDataRepository` (Micronaut Data JDBC interface) + `XxxRepository` `@Singleton` facade.
+- **Data/Repository split**: `XxxData` record + `XxxDataRepository` (Micronaut Data JDBC interface) + `XxxRepository` `@Singleton` facade. Reward rows are the exception: they use `TwitchRewardDataRepository` directly.
 - **Handlers**: webhook handlers implement `TwitchEventHandler`; command handlers extend `AbstractMessageHandler<T>` from oda-rabbit-conf.
 - **Flyway migrations**: `V{n}__snake-or-kebab-description.sql`, schema `twitch`.
 - **Metric constants**: `UPPER_SNAKE_CASE`, values like `twitch.events.received`.
@@ -98,5 +98,5 @@ oda-twitch-service/
 - `@Client("twitch-api")`/`@Client("twitch-id")` URLs come from `micronaut.http.services.*.urls` env vars — NOT in repo config; must be set at deploy time.
 - Shared logic lives in `oda-rabbit-conf` (0.11.232): `AMQPConfiguration`, `MessageProcessor`, `AbstractMessageHandler`, `TwitchFacade`, `TokenRPC`, `events.twitch` domain.
 - CI is externalized: `.github/workflows/maven.yml` delegates to `OpenDonationAssistant/oda-libraries@master`; release tags = GitHub RUN_NUMBER.
-- Known TODOs: `TwitchClient.createCustomReward` returns empty 200 on missing account; `TwitchAccountRepository.create` doesn't check duplicates.
+- Known TODO: `TwitchAccountRepository.create` doesn't check duplicates.
 - `.mvn/wrapper/` is gitignored — clean checkouts rely on `mvnw` bootstrap.

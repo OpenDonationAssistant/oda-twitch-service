@@ -1,6 +1,7 @@
 package io.github.opendonationassistant.twitch.webhook;
 
-import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
+import io.github.opendonationassistant.twitch.repository.TwitchAccount;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountFixture;
 import io.github.opendonationassistant.twitch.webhook.TwitchEventsWebhook.Reward;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
@@ -13,21 +14,28 @@ final class TwitchEventFixtures {
 
   private TwitchEventFixtures() {}
 
-  static final TwitchAccountData ACCOUNT = new TwitchAccountData(
-    "rec",
-    "tw",
-    "login",
-    "rt"
-  );
+  static final TwitchAccount ACCOUNT = TwitchAccountFixture.account();
 
   static final String CONTEXT_USERNAME = "bob";
 
   static EventContext context(TwitchEventsWebhook.Event event) {
-    return new EventContext("id-1", ACCOUNT, CONTEXT_USERNAME, Optional.of(event));
+    return new EventContext(
+      "id-1",
+      "message-1",
+      ACCOUNT,
+      CONTEXT_USERNAME,
+      Optional.of(event)
+    );
   }
 
   static EventContext contextWithoutEvent() {
-    return new EventContext("id-1", ACCOUNT, CONTEXT_USERNAME, Optional.empty());
+    return new EventContext(
+      "id-1",
+      "message-1",
+      ACCOUNT,
+      CONTEXT_USERNAME,
+      Optional.empty()
+    );
   }
 
   static Builder event() {
@@ -36,6 +44,7 @@ final class TwitchEventFixtures {
 
   static final class Builder {
 
+    private @Nullable String id;
     private @Nullable String userName;
     private @Nullable String tier;
     private @Nullable Boolean isPermanent;
@@ -50,6 +59,11 @@ final class TwitchEventFixtures {
     private @Nullable Integer streakMonths;
     private @Nullable String userInput;
     private @Nullable Reward reward;
+
+    Builder id(String value) {
+      this.id = value;
+      return this;
+    }
 
     Builder userName(String value) {
       this.userName = value;
@@ -123,6 +137,7 @@ final class TwitchEventFixtures {
 
     TwitchEventsWebhook.Event build() {
       return new TwitchEventsWebhook.Event(
+        id,
         null,
         userName,
         tier,

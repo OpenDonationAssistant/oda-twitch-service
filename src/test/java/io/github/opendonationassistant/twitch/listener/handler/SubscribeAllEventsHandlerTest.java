@@ -12,7 +12,8 @@ import static org.mockito.Mockito.when;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
 import io.github.opendonationassistant.rabbit.RabbitClient;
-import io.github.opendonationassistant.twitch.repository.TwitchAccountData;
+import io.github.opendonationassistant.twitch.repository.TwitchAccount;
+import io.github.opendonationassistant.twitch.repository.TwitchAccountFixture;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.serde.ObjectMapper;
 import java.io.IOException;
@@ -53,7 +54,7 @@ public class SubscribeAllEventsHandlerTest {
     "channel.goal.end"
   );
 
-  private static final TwitchAccountData ACCOUNT = new TwitchAccountData(
+  private static final TwitchAccount ACCOUNT = TwitchAccountFixture.account(
     "rec",
     "tw-1",
     "login",
