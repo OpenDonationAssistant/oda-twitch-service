@@ -83,7 +83,8 @@ oda-twitch-service/
 - Nested controller pattern: `SubscribeTwitchEvents`/`UnsubscribeTwitchEvents` are plain classes with `@Controller static class HttpWrapper` inner classes.
 - Native-image-first: `-Dpackaging=native-image` produces `target/oda-twitch-service` binary; Dockerfile has no JRE fallback.
 - AOT configs deliberately disable JWKS build-time fetch (`micronaut.security.jwks.enabled=false`).
-- Rabbit listeners each run on dedicated single-thread executors (`command-listener`, `config-listener`, `event-listener`).
+- Rabbit listeners each run on dedicated single-thread executors (`command-listener`, `config-listener`).
+- Redemption processing is fully asynchronous: account/reward queries and the `media.add` Rabbit RPC return `CompletableFuture`s; the redemption is refunded before the failure chat is dispatched, and the chat is not joined into the request path.
 
 ## COMMANDS
 ```bash

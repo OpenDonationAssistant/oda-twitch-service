@@ -5,6 +5,7 @@ import io.github.opendonationassistant.integration.twitch.TwitchClient;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Singleton
 public class TwitchAccountRepository {
@@ -41,8 +42,12 @@ public class TwitchAccountRepository {
     );
   }
 
-  public Optional<TwitchAccount> findByTwitchId(String twitchId) {
-    return repository.findByTwitchId(twitchId).map(this::convert);
+  public CompletableFuture<Optional<TwitchAccount>> findByTwitchId(
+    String twitchId
+  ) {
+    return repository
+      .findByTwitchId(twitchId)
+      .thenApply(found -> found.map(this::convert));
   }
 
   public Optional<TwitchAccount> findByRecipientId(String recipientId) {

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import io.github.opendonationassistant.integration.media.MediaRPC;
 import io.github.opendonationassistant.integration.twitch.TwitchClient;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,9 +39,11 @@ public class TwitchAccountRepositoryTest {
 
   @Test
   public void findByTwitchIdReturnsLinkedAccount() {
-    when(repository.findByTwitchId("tw")).thenReturn(Optional.of(DATA));
+    when(repository.findByTwitchId("tw")).thenReturn(
+      CompletableFuture.completedFuture(Optional.of(DATA))
+    );
 
-    var account = accounts.findByTwitchId("tw");
+    var account = accounts.findByTwitchId("tw").join();
 
     assertTrue(account.isPresent());
     assertEquals(DATA, account.get().data());

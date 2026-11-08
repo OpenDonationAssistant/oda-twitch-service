@@ -1,12 +1,15 @@
 package io.github.opendonationassistant.twitch.webhook;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.opendonationassistant.twitch.metrics.TwitchMetrics;
+import io.github.opendonationassistant.twitch.repository.TwitchAccount;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountFixture;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -42,7 +45,6 @@ public class TwitchEventsWebhookTest {
       .join();
 
     assertTrue(actual.code() == 200);
-    // assertEquals(Optional.of("challenge"), actual.body());
   }
 
   @Test
@@ -51,11 +53,10 @@ public class TwitchEventsWebhookTest {
     var metrics = new TwitchMetrics(registry);
     TwitchEventHandler handler = mock(TwitchEventHandler.class);
     when(handler.canHandle("channel.cheer")).thenReturn(true);
-    when(handler.handle(any())).thenReturn(CompletableFuture.completedFuture(null));
-    when(repository.findByTwitchId("123"))
-      .thenReturn(
-        Optional.of(TwitchAccountFixture.account())
-      );
+    when(handler.handle(any())).thenReturn(
+      CompletableFuture.completedFuture(null)
+    );
+    givenAccount("123");
     TwitchEventsWebhook webhook = new TwitchEventsWebhook(
       repository,
       List.of(handler),
@@ -66,14 +67,7 @@ public class TwitchEventsWebhookTest {
       .twitchWebhook(
         "notification",
         "message-1",
-        new TwitchEventsWebhook.Message(
-          null,
-          new TwitchEventsWebhook.Subscription(
-            "channel.cheer",
-            Map.of("broadcaster_user_id", "123")
-          ),
-          null
-        )
+        notification("channel.cheer")
       )
       .join();
 
@@ -103,10 +97,7 @@ public class TwitchEventsWebhookTest {
   public void testCountsUnhandledEvent() {
     var registry = new SimpleMeterRegistry();
     var metrics = new TwitchMetrics(registry);
-    when(repository.findByTwitchId("123"))
-      .thenReturn(
-        Optional.of(TwitchAccountFixture.account())
-      );
+    givenAccount("123");
     TwitchEventsWebhook webhook = new TwitchEventsWebhook(
       repository,
       List.of(),
@@ -117,14 +108,7 @@ public class TwitchEventsWebhookTest {
       .twitchWebhook(
         "notification",
         "message-1",
-        new TwitchEventsWebhook.Message(
-          null,
-          new TwitchEventsWebhook.Subscription(
-            "channel.unknown",
-            Map.of("broadcaster_user_id", "123")
-          ),
-          null
-        )
+        notification("channel.unknown")
       )
       .join();
 
@@ -144,7 +128,9 @@ public class TwitchEventsWebhookTest {
   public void testCountsNoAccountEvent() {
     var registry = new SimpleMeterRegistry();
     var metrics = new TwitchMetrics(registry);
-    when(repository.findByTwitchId("123")).thenReturn(Optional.empty());
+    when(repository.findByTwitchId("123")).thenReturn(
+      CompletableFuture.completedFuture(Optional.empty())
+    );
     TwitchEventsWebhook webhook = new TwitchEventsWebhook(
       repository,
       List.of(),
@@ -155,14 +141,7 @@ public class TwitchEventsWebhookTest {
       .twitchWebhook(
         "notification",
         "message-1",
-        new TwitchEventsWebhook.Message(
-          null,
-          new TwitchEventsWebhook.Subscription(
-            "channel.cheer",
-            Map.of("broadcaster_user_id", "123")
-          ),
-          null
-        )
+        notification("channel.cheer")
       )
       .join();
 
@@ -175,6 +154,87 @@ public class TwitchEventsWebhookTest {
           "channel.cheer"
         )
         .count()
+    );
+  }
+
+  @Test
+  public void doesNotBlockWhileAccountLookupIsPending() {
+    var registry = new SimpleMeterRegistry();
+    var pending = new CompletableFuture<Optional<TwitchAccount>>();
+    when(repository.findByTwitchId("123")).thenReturn(pending);
+    TwitchEventsWebhook webhook = new TwitchEventsWebhook(
+      repository,
+      List.of(),
+      new TwitchMetrics(registry)
+    );
+
+    var result = webhook.twitchWebhook(
+      "notification",
+      "message-1",
+      notification("channel.cheer")
+    );
+
+    assertFalse(result.isDone());
+
+    pending.complete(Optional.empty());
+
+    assertTrue(result.isDone());
+    result.join();
+    assertEquals(
+      1,
+      registry
+        .counter(
+          TwitchMetrics.EVENTS_NOACCOUNT_METRIC_NAME,
+          TwitchMetrics.TYPE_TAG,
+          "channel.cheer"
+        )
+        .count()
+    );
+  }
+
+  @Test
+  public void completesOnlyAfterHandlerCompletes() {
+    TwitchEventHandler handler = mock(TwitchEventHandler.class);
+    when(handler.canHandle("channel.cheer")).thenReturn(true);
+    var pending = new CompletableFuture<Void>();
+    doReturn(pending).when(handler).handle(any());
+    givenAccount("123");
+    TwitchEventsWebhook webhook = new TwitchEventsWebhook(
+      repository,
+      List.of(handler),
+      new TwitchMetrics(new SimpleMeterRegistry())
+    );
+
+    var result = webhook.twitchWebhook(
+      "notification",
+      "message-1",
+      notification("channel.cheer")
+    );
+
+    assertFalse(result.isDone());
+
+    pending.complete(null);
+
+    assertTrue(result.isDone());
+    result.join();
+  }
+
+  private void givenAccount(String twitchId) {
+    when(repository.findByTwitchId(twitchId)).thenReturn(
+      CompletableFuture.completedFuture(
+        Optional.of(TwitchAccountFixture.account())
+      )
+    );
+  }
+
+  private static TwitchEventsWebhook.Message notification(String type) {
+    return new TwitchEventsWebhook.Message(
+      null,
+      new TwitchEventsWebhook.Subscription(
+        type,
+        Map.of("broadcaster_user_id", "123")
+      ),
+      null
     );
   }
 }

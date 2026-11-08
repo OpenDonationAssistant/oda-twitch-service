@@ -2,9 +2,12 @@ package io.github.opendonationassistant.twitch.repository;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -12,6 +15,7 @@ import static org.mockito.Mockito.when;
 import io.github.opendonationassistant.integration.media.MediaRPC;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.DataWrapper;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.SendChatMessageResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +45,28 @@ public class TwitchRewardTest {
     reward = new TwitchReward(DATA, mediaRPC, messaging, refund);
   }
 
+  private void givenMediaAdded() {
+    when(mediaRPC.add(any())).thenReturn(
+      CompletableFuture.completedFuture(
+        new MediaRPC.AddMediaResponse("media-1", "ok")
+      )
+    );
+  }
+
+  private void givenMediaFailed(String message) {
+    when(mediaRPC.add(any())).thenReturn(
+      CompletableFuture.failedFuture(new RuntimeException(message))
+    );
+  }
+
+  private void givenMediaRejected(String message) {
+    when(mediaRPC.add(any())).thenReturn(
+      CompletableFuture.completedFuture(
+        new MediaRPC.AddMediaResponse(null, message)
+      )
+    );
+  }
+
   private void givenChatMessageSent() {
     when(messaging.send(any())).thenReturn(
       CompletableFuture.completedFuture(
@@ -62,10 +88,9 @@ public class TwitchRewardTest {
 
   @Test
   public void sendsAddMediaRequest() {
-    when(mediaRPC.add(any()))
-      .thenReturn(new MediaRPC.AddMediaResponse("media-1", "ok"));
+    givenMediaAdded();
 
-    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob");
+    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob").join();
 
     verify(mediaRPC).add(
       new MediaRPC.AddMediaRequest("media-1", "song.mp3", "bob", "rec", "twitch")
@@ -74,13 +99,55 @@ public class TwitchRewardTest {
   }
 
   @Test
+  public void refundsBeforeNotifyingChat() {
+    givenMediaFailed("boom");
+    givenChatMessageSent();
+    var pendingRefund = new CompletableFuture<Void>();
+    when(refund.cancel(any())).thenReturn(pendingRefund);
+
+    var result = reward.addMedia(
+      "redemption-1",
+      "media-1",
+      "song.mp3",
+      "bob"
+    );
+
+    verify(refund).cancel("redemption-1");
+    verify(messaging, never()).send(any());
+    assertFalse(result.isDone());
+
+    pendingRefund.complete(null);
+
+    assertEquals("Не удалось добавить медиа: boom", captureChatMessage());
+    assertTrue(result.isDone());
+  }
+
+  @Test
   public void notifiesChatAndReturnsRedemptionWhenRpcThrows() {
+    givenMediaFailed("boom");
+    givenChatMessageSent();
+    givenRedemptionReturned();
+
+    assertDoesNotThrow(() ->
+      reward
+        .addMedia("redemption-1", "media-1", "song.mp3", "bob")
+        .join()
+    );
+
+    assertEquals("Не удалось добавить медиа: boom", captureChatMessage());
+    verify(refund).cancel("redemption-1");
+  }
+
+  @Test
+  public void notifiesChatAndReturnsRedemptionWhenRpcInvocationThrows() {
     when(mediaRPC.add(any())).thenThrow(new RuntimeException("boom"));
     givenChatMessageSent();
     givenRedemptionReturned();
 
     assertDoesNotThrow(() ->
-      reward.addMedia("redemption-1", "media-1", "song.mp3", "bob")
+      reward
+        .addMedia("redemption-1", "media-1", "song.mp3", "bob")
+        .join()
     );
 
     assertEquals("Не удалось добавить медиа: boom", captureChatMessage());
@@ -89,12 +156,11 @@ public class TwitchRewardTest {
 
   @Test
   public void notifiesChatAndReturnsRedemptionWhenMediaRejected() {
-    when(mediaRPC.add(any()))
-      .thenReturn(new MediaRPC.AddMediaResponse(null, "Слишком длинное видео"));
+    givenMediaRejected("Слишком длинное видео");
     givenChatMessageSent();
     givenRedemptionReturned();
 
-    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob");
+    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob").join();
 
     assertEquals(
       "Не удалось добавить медиа: Слишком длинное видео",
@@ -105,35 +171,49 @@ public class TwitchRewardTest {
 
   @Test
   public void doesNotNotifyWhenMediaWasAdded() {
-    when(mediaRPC.add(any()))
-      .thenReturn(new MediaRPC.AddMediaResponse("media-1", "ok"));
+    givenMediaAdded();
 
-    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob");
+    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob").join();
 
     verifyNoInteractions(messaging, refund);
   }
 
   @Test
   public void returnsRedemptionEvenWhenChatMessageFails() {
-    when(mediaRPC.add(any())).thenThrow(new RuntimeException("boom"));
+    givenMediaFailed("boom");
     when(messaging.send(any())).thenReturn(
       CompletableFuture.failedFuture(new RuntimeException("chat is down"))
     );
     givenRedemptionReturned();
 
     assertDoesNotThrow(() ->
-      reward.addMedia("redemption-1", "media-1", "song.mp3", "bob")
+      reward
+        .addMedia("redemption-1", "media-1", "song.mp3", "bob")
+        .join()
     );
 
     verify(refund).cancel("redemption-1");
   }
 
   @Test
+  public void completesWithoutWaitingForChatMessage() {
+    givenMediaFailed("boom");
+    when(messaging.send(any())).thenReturn(new CompletableFuture<>());
+    givenRedemptionReturned();
+
+    assertTimeoutPreemptively(Duration.ofSeconds(1), () ->
+      reward.addMedia("redemption-1", "media-1", "song.mp3", "bob").join()
+    );
+
+    verify(messaging).send(any());
+  }
+
+  @Test
   public void skipsReturnWhenRedemptionIdIsMissing() {
-    when(mediaRPC.add(any())).thenThrow(new RuntimeException("boom"));
+    givenMediaFailed("boom");
     givenChatMessageSent();
 
-    reward.addMedia(null, "media-1", "song.mp3", "bob");
+    reward.addMedia(null, "media-1", "song.mp3", "bob").join();
 
     verify(messaging).send(any());
     verifyNoInteractions(refund);
@@ -141,36 +221,42 @@ public class TwitchRewardTest {
 
   @Test
   public void doesNotFailWhenRefundThrows() {
-    when(mediaRPC.add(any())).thenThrow(new RuntimeException("boom"));
+    givenMediaFailed("boom");
     givenChatMessageSent();
     when(refund.cancel(any())).thenReturn(
       CompletableFuture.failedFuture(new RuntimeException("twitch is down"))
     );
 
     assertDoesNotThrow(() ->
-      reward.addMedia("redemption-1", "media-1", "song.mp3", "bob")
+      reward
+        .addMedia("redemption-1", "media-1", "song.mp3", "bob")
+        .join()
     );
+
+    verify(messaging).send(any());
   }
 
   @Test
   public void truncatesChatMessageToTwitchLimit() {
-    when(mediaRPC.add(any()))
-      .thenReturn(new MediaRPC.AddMediaResponse(null, "ошибка ".repeat(100)));
+    givenMediaRejected("ошибка ".repeat(100));
     givenChatMessageSent();
     givenRedemptionReturned();
 
-    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob");
+    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob").join();
 
     assertTrue(captureChatMessage().length() <= 500);
   }
 
   @Test
   public void usesUnknownFailureWhenReasonIsMissing() {
-    when(mediaRPC.add(any())).thenThrow(new RuntimeException());
     givenChatMessageSent();
     givenRedemptionReturned();
 
-    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob");
+    when(mediaRPC.add(any())).thenReturn(
+      CompletableFuture.failedFuture(new RuntimeException())
+    );
+
+    reward.addMedia("redemption-1", "media-1", "song.mp3", "bob").join();
 
     assertEquals(
       "Не удалось добавить медиа: неизвестная ошибка",

@@ -9,16 +9,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import org.jspecify.annotations.Nullable;
 
-/**
- * A reward linked to a {@link TwitchAccount}.
- *
- * <p>The reward does not look up its account: the account constructs it and
- * supplies the messaging and refund functions bound to that account, so chat
- * notifications and redemption refunds always use the account's current
- * credentials.
- */
 public class TwitchReward {
 
   private static final int MAX_CHAT_MESSAGE_LENGTH = 500;
@@ -60,50 +54,22 @@ public class TwitchReward {
     return data;
   }
 
-  public void addMedia(
+  public CompletableFuture<Void> addMedia(
     @Nullable String redemptionId,
     String mediaId,
     String url,
     String requester
   ) {
+    final MediaRPC.AddMediaRequest request = new MediaRPC.AddMediaRequest(
+      mediaId,
+      url,
+      requester,
+      data.recipientId(),
+      "twitch"
+    );
+    final CompletableFuture<MediaRPC.AddMediaResponse> response;
     try {
-      var response = mediaRPC.add(
-        new MediaRPC.AddMediaRequest(
-          mediaId,
-          url,
-          requester,
-          data.recipientId(),
-          "twitch"
-        )
-      );
-      if (response.id() == null) {
-        log.error(
-          "Media service rejected add media request",
-          Map.of(
-            "recipientId",
-            data.recipientId(),
-            "requester",
-            requester,
-            "message",
-            Objects.toString(response.message(), "")
-          )
-        );
-        handleFailure(redemptionId, response.message());
-        return;
-      }
-      log.info(
-        "Added media from reward redemption",
-        Map.of(
-          "recipientId",
-          data.recipientId(),
-          "requester",
-          requester,
-          "mediaId",
-          response.id(),
-          "message",
-          Objects.toString(response.message(), "")
-        )
-      );
+      response = mediaRPC.add(request);
     } catch (RuntimeException e) {
       log.error(
         "Failed to add media from reward redemption",
@@ -116,64 +82,118 @@ public class TwitchReward {
           Objects.toString(e.getMessage(), "")
         )
       );
-      handleFailure(redemptionId, e.getMessage());
+      return handleFailure(redemptionId, e.getMessage());
     }
-  }
-
-  private void handleFailure(
-    @Nullable String redemptionId,
-    @Nullable String reason
-  ) {
-    sendFailureChatMessage(reason);
-    returnRedemption(redemptionId);
-  }
-
-  private void sendFailureChatMessage(@Nullable String reason) {
-    try {
-      var response = messaging.send(failureChatMessage(reason)).join();
-      if (response != null && response.error() != null) {
-        log.error(
-          "Failed to send chat message about failed media request",
+    return response
+      .thenCompose(it -> {
+        if (it.id() == null) {
+          log.error(
+            "Media service rejected add media request",
+            Map.of(
+              "recipientId",
+              data.recipientId(),
+              "requester",
+              requester,
+              "message",
+              Objects.toString(it.message(), "")
+            )
+          );
+          return handleFailure(redemptionId, it.message());
+        }
+        log.info(
+          "Added media from reward redemption",
           Map.of(
             "recipientId",
             data.recipientId(),
-            "error",
-            response.error(),
+            "requester",
+            requester,
+            "mediaId",
+            it.id(),
             "message",
-            Objects.toString(response.message(), "")
+            Objects.toString(it.message(), "")
           )
         );
-      }
+        return CompletableFuture.<Void>completedFuture(null);
+      })
+      .exceptionallyCompose(failure -> {
+        log.error(
+          "Failed to add media from reward redemption",
+          Map.of(
+            "recipientId",
+            data.recipientId(),
+            "requester",
+            requester,
+            "error",
+            Objects.toString(failureReason(failure), "")
+          )
+        );
+        return handleFailure(redemptionId, failureReason(failure));
+      });
+  }
+
+  private CompletableFuture<Void> handleFailure(
+    @Nullable String redemptionId,
+    @Nullable String reason
+  ) {
+    final CompletableFuture<Void> refunded = returnRedemption(redemptionId);
+    refunded.whenComplete((ignored, failure) ->
+      sendFailureChatMessage(reason)
+    );
+    return refunded;
+  }
+
+  private CompletableFuture<Void> sendFailureChatMessage(
+    @Nullable String reason
+  ) {
+    try {
+      return messaging
+        .send(failureChatMessage(reason))
+        .thenAccept(response -> {
+          if (response != null && response.error() != null) {
+            log.error(
+              "Failed to send chat message about failed media request",
+              Map.of(
+                "recipientId",
+                data.recipientId(),
+                "error",
+                response.error(),
+                "message",
+                Objects.toString(response.message(), "")
+              )
+            );
+          }
+        })
+        .exceptionally(failure -> {
+          log.error(
+            "Failed to send chat message about failed media request: recipientId=" +
+            data.recipientId(),
+            asException(failure)
+          );
+          return null;
+        });
     } catch (RuntimeException e) {
       log.error(
         "Failed to send chat message about failed media request: recipientId=" +
         data.recipientId(),
         e
       );
+      return CompletableFuture.completedFuture(null);
     }
   }
 
-  private void returnRedemption(@Nullable String redemptionId) {
+  private CompletableFuture<Void> returnRedemption(
+    @Nullable String redemptionId
+  ) {
     if (redemptionId == null) {
       log.warn(
         "Cannot return reward redemption without redemption id",
         Map.of("recipientId", data.recipientId(), "rewardId", data.id())
       );
-      return;
+      return CompletableFuture.completedFuture(null);
     }
+    final CompletableFuture<Void> cancellation;
     try {
-      refund.cancel(redemptionId).join();
-      log.info(
-        "Returned reward redemption after failed media request",
-        Map.of(
-          "recipientId",
-          data.recipientId(),
-          "rewardId",
-          data.id(),
-          "redemptionId",
-          redemptionId
-        )
-      );
+      cancellation = refund.cancel(redemptionId);
     } catch (RuntimeException e) {
       log.error(
         "Failed to return reward redemption: recipientId=" +
@@ -182,7 +202,51 @@ public class TwitchReward {
         redemptionId,
         e
       );
+      return CompletableFuture.completedFuture(null);
     }
+    return cancellation
+      .thenAccept(ignored ->
+        log.info(
+          "Returned reward redemption after failed media request",
+          Map.of(
+            "recipientId",
+            data.recipientId(),
+            "rewardId",
+            data.id(),
+            "redemptionId",
+            redemptionId
+          )
+        )
+      )
+      .exceptionally(failure -> {
+        log.error(
+          "Failed to return reward redemption: recipientId=" +
+          data.recipientId() +
+          ", redemptionId=" +
+          redemptionId,
+          asException(failure)
+        );
+        return null;
+      });
+  }
+
+  private static Exception asException(Throwable failure) {
+    return failure instanceof Exception exception
+      ? exception
+      : new RuntimeException(failure);
+  }
+
+  private static @Nullable String failureReason(Throwable failure) {
+    if (
+      failure instanceof CompletionException ||
+      failure instanceof ExecutionException
+    ) {
+      final Throwable cause = failure.getCause();
+      if (cause != null) {
+        return cause.getMessage();
+      }
+    }
+    return failure.getMessage();
   }
 
   private static String failureChatMessage(@Nullable String reason) {

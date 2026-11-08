@@ -53,10 +53,10 @@ public class TwitchAccountTest {
   @Test
   public void returnsLinkedReward() {
     when(rewards.findByRecipientIdAndType("rec", "music")).thenReturn(
-      Optional.of(REWARD_DATA)
+      CompletableFuture.completedFuture(Optional.of(REWARD_DATA))
     );
 
-    var reward = account.reward("music");
+    var reward = account.reward("music").join();
 
     assertTrue(reward.isPresent());
     assertEquals(REWARD_DATA, reward.get().data());
@@ -65,10 +65,10 @@ public class TwitchAccountTest {
   @Test
   public void returnsEmptyWhenAccountHasNoLinkedReward() {
     when(rewards.findByRecipientIdAndType("rec", "music")).thenReturn(
-      Optional.empty()
+      CompletableFuture.completedFuture(Optional.empty())
     );
 
-    assertTrue(account.reward("music").isEmpty());
+    assertTrue(account.reward("music").join().isEmpty());
   }
 
   @Test
@@ -114,9 +114,11 @@ public class TwitchAccountTest {
   @Test
   public void linkedRewardReportsFailuresThroughAccount() {
     when(rewards.findByRecipientIdAndType("rec", "music")).thenReturn(
-      Optional.of(REWARD_DATA)
+      CompletableFuture.completedFuture(Optional.of(REWARD_DATA))
     );
-    when(mediaRPC.add(any())).thenThrow(new RuntimeException("boom"));
+    when(mediaRPC.add(any())).thenReturn(
+      CompletableFuture.failedFuture(new RuntimeException("boom"))
+    );
     when(twitch.sendChatMessage(any(), any(), any())).thenReturn(
       CompletableFuture.completedFuture(
         new DataWrapper<List<SendChatMessageResponse>>(
@@ -133,8 +135,10 @@ public class TwitchAccountTest {
 
     account
       .reward("music")
+      .join()
       .orElseThrow()
-      .addMedia("redemption-1", "media-1", "song.mp3", "bob");
+      .addMedia("redemption-1", "media-1", "song.mp3", "bob")
+      .join();
 
     var captor = ArgumentCaptor.forClass(SendChatMessageRequest.class);
     verify(twitch).sendChatMessage(eq("rec"), eq("rt"), captor.capture());

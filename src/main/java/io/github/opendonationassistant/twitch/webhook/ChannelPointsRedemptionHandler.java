@@ -16,29 +16,38 @@ public class ChannelPointsRedemptionHandler implements TwitchEventHandler {
 
   @Override
   public CompletableFuture<?> handle(EventContext context) {
-    context
+    return context
       .event()
-      .ifPresent(it -> {
-        var reward = it.reward();
-        var userInput = it.userInput();
-        var userName = it.userName();
-        if (reward == null || userInput == null || userName == null) {
-          return;
-        }
-        context
-          .account()
-          .reward("music")
+      .map(it -> handle(context, it))
+      .orElseGet(() -> CompletableFuture.completedFuture(null));
+  }
+
+  private CompletableFuture<?> handle(
+    EventContext context,
+    TwitchEventsWebhook.Event event
+  ) {
+    var reward = event.reward();
+    var userInput = event.userInput();
+    var userName = event.userName();
+    if (reward == null || userInput == null || userName == null) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return context
+      .account()
+      .reward("music")
+      .thenCompose(it ->
+        it
           .filter(r -> r.data().id().equals(reward.id()))
-          .ifPresent(r ->
+          .map(r ->
             r.addMedia(
-              it.id(),
+              event.id(),
               mediaId(context.messageId()),
               userInput,
               userName
             )
-          );
-      });
-    return CompletableFuture.completedFuture(null);
+          )
+          .orElseGet(() -> CompletableFuture.<Void>completedFuture(null))
+      );
   }
 
   private static String mediaId(@Nullable String messageId) {

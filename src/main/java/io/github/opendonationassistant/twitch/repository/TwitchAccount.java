@@ -46,15 +46,17 @@ public class TwitchAccount {
     return data.refreshTokenId();
   }
 
-  public Optional<TwitchReward> reward(String type) {
+  public CompletableFuture<Optional<TwitchReward>> reward(String type) {
     return rewards
       .findByRecipientIdAndType(data.recipientId(), type)
-      .map(it ->
-        new TwitchReward(
-          it,
-          mediaRPC,
-          this::sendMessage,
-          redemptionId -> cancelRedemption(it.id(), redemptionId)
+      .thenApply(found ->
+        found.map(it ->
+          new TwitchReward(
+            it,
+            mediaRPC,
+            this::sendMessage,
+            redemptionId -> cancelRedemption(it.id(), redemptionId)
+          )
         )
       );
   }

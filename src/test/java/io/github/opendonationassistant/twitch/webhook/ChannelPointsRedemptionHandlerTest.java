@@ -17,50 +17,15 @@ import io.github.opendonationassistant.twitch.repository.TwitchAccount;
 import io.github.opendonationassistant.twitch.repository.TwitchReward;
 import io.github.opendonationassistant.twitch.repository.TwitchRewardData;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.AbstractExecutorService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 public class ChannelPointsRedemptionHandlerTest {
-
-  private static ExecutorService directExecutor() {
-    return new AbstractExecutorService() {
-      @Override
-      public void shutdown() {}
-
-      @Override
-      public List<Runnable> shutdownNow() {
-        return List.of();
-      }
-
-      @Override
-      public boolean isShutdown() {
-        return false;
-      }
-
-      @Override
-      public boolean isTerminated() {
-        return false;
-      }
-
-      @Override
-      public boolean awaitTermination(long timeout, TimeUnit unit) {
-        return true;
-      }
-
-      @Override
-      public void execute(Runnable command) {
-        command.run();
-      }
-    };
-  }
 
   private TwitchAccount account;
   private ChannelPointsRedemptionHandler handler;
@@ -165,6 +130,37 @@ public class ChannelPointsRedemptionHandlerTest {
   }
 
   @Test
+  public void doesNotBlockWhileRewardLookupIsPending() {
+    var pending = new CompletableFuture<Optional<TwitchReward>>();
+    when(account.reward("music")).thenReturn(pending);
+
+    var result = handler.handle(context(event("r-1", "song.mp3", "bob")));
+
+    assertFalse(result.isDone());
+
+    pending.complete(Optional.empty());
+
+    assertTrue(result.isDone());
+    result.join();
+  }
+
+  @Test
+  public void completesOnlyAfterMediaWorkCompletes() {
+    var reward = matchingReward();
+    var pending = new CompletableFuture<Void>();
+    when(reward.addMedia(any(), any(), any(), any())).thenReturn(pending);
+
+    var result = handler.handle(context(event("r-1", "song.mp3", "bob")));
+
+    assertFalse(result.isDone());
+
+    pending.complete(null);
+
+    assertTrue(result.isDone());
+    result.join();
+  }
+
+  @Test
   public void ignoresRedemptionForUnknownReward() {
     var reward = matchingReward();
 
@@ -175,7 +171,9 @@ public class ChannelPointsRedemptionHandlerTest {
 
   @Test
   public void ignoresRedemptionWhenAccountHasNoLinkedReward() {
-    when(account.reward("music")).thenReturn(Optional.empty());
+    when(account.reward("music")).thenReturn(
+      CompletableFuture.completedFuture(Optional.empty())
+    );
 
     handler.handle(context(event("r-1", "song.mp3", "bob"))).join();
 
@@ -275,7 +273,12 @@ public class ChannelPointsRedemptionHandlerTest {
     when(reward.data()).thenReturn(
       new TwitchRewardData("r-1", "rec", "rt", "widget", "music")
     );
-    when(account.reward("music")).thenReturn(Optional.of(reward));
+    when(reward.addMedia(any(), any(), any(), any())).thenReturn(
+      CompletableFuture.completedFuture(null)
+    );
+    when(account.reward("music")).thenReturn(
+      CompletableFuture.completedFuture(Optional.of(reward))
+    );
     return reward;
   }
 

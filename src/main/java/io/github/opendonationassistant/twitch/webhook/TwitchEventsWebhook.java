@@ -5,6 +5,7 @@ import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.TimeBasedEpochGenerator;
 import io.github.opendonationassistant.commons.logging.ODALogger;
 import io.github.opendonationassistant.twitch.metrics.TwitchMetrics;
+import io.github.opendonationassistant.twitch.repository.TwitchAccount;
 import io.github.opendonationassistant.twitch.repository.TwitchAccountRepository;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
@@ -63,53 +64,60 @@ public class TwitchEventsWebhook {
             .orElseGet(() -> HttpResponse.ok())
         );
       case "notification":
-        metrics.eventReceived(message.subscription.type);
-        return Optional.ofNullable(
-          message.subscription().condition().get("broadcaster_user_id")
-        )
-          .or(() ->
-            Optional.ofNullable(
-              message.subscription().condition().get("to_broadcaster_user_id")
-            )
-          )
-          .flatMap(userId -> repository.findByTwitchId(userId))
-          .map(account -> {
-            final Optional<Event> event = Optional.ofNullable(message.event());
-            String username = event.map(it -> it.userName()).orElse("");
-            var id = uuid.generate().toString();
-            var context = new EventContext(
-              id,
-              messageId,
-              account,
-              username,
-              event
-            );
-            return handlers
-              .stream()
-              .filter(h -> h.canHandle(message.subscription.type))
-              .findFirst()
-              .map(h -> {
-                metrics.eventHandled(message.subscription.type);
-                return h.handle(context);
-              })
+        metrics.eventReceived(message.subscription().type());
+        return broadcasterUserId(message)
+          .map(repository::findByTwitchId)
+          .orElseGet(() -> CompletableFuture.completedFuture(Optional.empty()))
+          .thenCompose(account ->
+            account
+              .map(found -> dispatch(message, messageId, found))
               .orElseGet(() -> {
-                metrics.eventUnhandled(message.subscription.type);
-                return CompletableFuture.completedFuture(null);
-              });
-          })
-          .orElseGet(() -> {
-            log.info(
-              "No account found for user in webhook",
-              Map.of("message", message)
-            );
-            metrics.eventNoAccount(message.subscription.type);
-            return CompletableFuture.completedFuture(null);
-          })
+                log.info(
+                  "No account found for user in webhook",
+                  Map.of("message", message)
+                );
+                metrics.eventNoAccount(message.subscription().type());
+                return CompletableFuture.<Void>completedFuture(null);
+              })
+          )
           .thenApply(response -> HttpResponse.ok(""));
       default:
         log.info("Unknown webhook message type", Map.of("type", type));
         return CompletableFuture.completedFuture(HttpResponse.ok(""));
     }
+  }
+
+  private CompletableFuture<Void> dispatch(
+    Message message,
+    @Nullable String messageId,
+    TwitchAccount account
+  ) {
+    final Optional<Event> event = Optional.ofNullable(message.event());
+    String username = event.map(it -> it.userName()).orElse("");
+    var id = uuid.generate().toString();
+    var context = new EventContext(id, messageId, account, username, event);
+    return handlers
+      .stream()
+      .filter(handler -> handler.canHandle(message.subscription().type()))
+      .findFirst()
+      .map(handler -> {
+        metrics.eventHandled(message.subscription().type());
+        return handler.handle(context).thenApply(ignored -> (Void) null);
+      })
+      .orElseGet(() -> {
+        metrics.eventUnhandled(message.subscription().type());
+        return CompletableFuture.completedFuture(null);
+      });
+  }
+
+  private static Optional<String> broadcasterUserId(Message message) {
+    return Optional.ofNullable(
+      message.subscription().condition().get("broadcaster_user_id")
+    ).or(() ->
+      Optional.ofNullable(
+        message.subscription().condition().get("to_broadcaster_user_id")
+      )
+    );
   }
 
   @Serdeable

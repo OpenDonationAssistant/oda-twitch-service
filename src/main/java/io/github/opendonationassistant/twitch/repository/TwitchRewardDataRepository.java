@@ -4,12 +4,13 @@ import io.micronaut.data.jdbc.annotation.JdbcRepository;
 import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.repository.CrudRepository;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @JdbcRepository(dialect = Dialect.POSTGRES)
 public interface TwitchRewardDataRepository
   extends CrudRepository<TwitchRewardData, String> {
   Optional<TwitchRewardData> findOneByWidgetId(String widgetId);
-  Optional<TwitchRewardData> findByRecipientIdAndType(
+  CompletableFuture<Optional<TwitchRewardData>> findByRecipientIdAndType(
     String recipientId,
     String type
   );

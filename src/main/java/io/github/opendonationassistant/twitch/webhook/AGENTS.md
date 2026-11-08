@@ -15,10 +15,11 @@ Receives Twitch EventSub notifications at `POST /twitch/events` (anonymous), ans
 
 ## CONVENTIONS
 - `TwitchEventsWebhook` injects `List<TwitchEventHandler>`; dispatch = first handler whose `canHandle(subscription.type)` returns true.
-- Account resolution: `TwitchAccountRepository.findByTwitchId` on `broadcaster_user_id` (falls back to `to_broadcaster_user_id`) returns a `TwitchAccount`; missing account → `eventNoAccount` metric, no event emitted.
+- Account resolution: `TwitchAccountRepository.findByTwitchId` on `broadcaster_user_id` (falls back to `to_broadcaster_user_id`) returns a `CompletableFuture<Optional<TwitchAccount>>`; missing account → `eventNoAccount` metric, no event emitted.
 - Handlers emit ODA domain events via `TwitchFacade` (external lib) or ask the resolved `TwitchAccount` for its linked `TwitchReward` — never publish to Rabbit directly.
 - Every path updates `TwitchMetrics`: `eventReceived` / `eventHandled` / `eventUnhandled` / `eventNoAccount`.
-- `ChannelPointsRedemptionHandler` calls `context.account().reward("music")` and then `TwitchReward.addMedia` on the `event-listener` executor. On failure `TwitchReward` posts the reason through the account's messaging function and cancels the redemption so the viewer's points are returned.
+- `ChannelPointsRedemptionHandler` chains `context.account().reward("music")` (async Data lookup) and `TwitchReward.addMedia` (async Rabbit RPC) without blocking. On failure `TwitchReward` cancels the redemption first, then dispatches the reason through the account's messaging function without joining the chat future.
+- The webhook returns a `CompletableFuture` that represents the dispatched work; the Netty event-loop thread never waits for JDBC, RabbitMQ, or Twitch HTTP calls.
 
 ## ANTI-PATTERNS
 - Do NOT add a handler without wiring its metric path in `TwitchMetrics`.

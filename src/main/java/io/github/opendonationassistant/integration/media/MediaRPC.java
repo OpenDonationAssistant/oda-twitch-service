@@ -4,13 +4,14 @@ import io.micronaut.rabbitmq.annotation.Binding;
 import io.micronaut.rabbitmq.annotation.RabbitClient;
 import io.micronaut.rabbitmq.annotation.RabbitProperty;
 import io.micronaut.serde.annotation.Serdeable;
+import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.Nullable;
 
 @RabbitClient("rpc")
 @RabbitProperty(name = "replyTo", value = "amq.rabbitmq.reply-to")
 public interface MediaRPC {
   @Binding("media.add")
-  AddMediaResponse add(AddMediaRequest request);
+  CompletableFuture<AddMediaResponse> add(AddMediaRequest request);
 
   @Serdeable
   record AddMediaRequest(
