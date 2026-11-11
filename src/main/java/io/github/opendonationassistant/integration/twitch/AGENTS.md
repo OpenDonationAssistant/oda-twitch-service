@@ -13,7 +13,7 @@ Declarative Micronaut HTTP clients for the Twitch Helix API (`twitch-api`) and I
 | Token handling / facade | `TwitchClient.java` | `runWithToken()` + `getAppToken()` |
 
 ## CONVENTIONS
-- All outbound Twitch calls go through `TwitchClient`; it obtains a user token via `TokenRPC` (Rabbit RPC) then invokes the declarative client.
+- All outbound Twitch calls go through `TwitchClient`; it obtains a user token via `AsyncTokenRPC` (wraps the `TokenRPC` Rabbit RPC, runs it on the blocking executor) then invokes the declarative client.
 - `runWithToken(recipientId, refreshTokenId, fn)` fails with a `Problem` "Unauthorized" when the token RPC returns null.
 - App-level calls (`subscribe`, `getSubscriptions`, `deleteSubscription`) use `getAppToken()` (client_credentials grant).
 - `@Client("twitch-api")`/`@Client("twitch-id")` base URLs come from `micronaut.http.services.*.urls` env vars — set at deploy time, not in repo config.

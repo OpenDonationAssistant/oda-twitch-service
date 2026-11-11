@@ -1,8 +1,11 @@
 package io.github.opendonationassistant;
 
+import io.github.opendonationassistant.commons.BlockingExecutor;
 import io.github.opendonationassistant.rabbit.AMQPConfiguration;
+import io.github.opendonationassistant.rabbit.AsyncTokenRPC;
 import io.github.opendonationassistant.rabbit.Exchange;
 import io.github.opendonationassistant.rabbit.RabbitClient;
+import io.github.opendonationassistant.rabbit.TokenRPC;
 import io.github.opendonationassistant.twitch.listener.CommandListener;
 import io.github.opendonationassistant.twitch.listener.ConfigListener;
 import io.micronaut.context.ApplicationContextBuilder;
@@ -81,5 +84,13 @@ public class Application {
   @Named("commands")
   public RabbitClient commandsFacade(ChannelPool pool, ObjectMapper mapper) {
     return new RabbitClient(pool, mapper, "commands");
+  }
+
+  @Singleton
+  public AsyncTokenRPC asyncTokenRpc(
+    TokenRPC tokenRPC,
+    BlockingExecutor blockingExecutor
+  ) {
+    return new AsyncTokenRPC(tokenRPC, blockingExecutor);
   }
 }

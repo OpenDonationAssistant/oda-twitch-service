@@ -27,7 +27,7 @@
     <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
     <sonar.jacoco.reportPath>${project.basedir}/target/jacoco.exec</sonar.jacoco.reportPath>
     <sonar.language>java</sonar.language>
-    <oda.version>0.12.249</oda.version>
+    <oda.version>0.12.250</oda.version>
   </properties>
 
   <repositories>

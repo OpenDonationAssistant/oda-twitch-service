@@ -2,11 +2,11 @@ package io.github.opendonationassistant.integration.twitch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,7 +24,7 @@ import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Subscr
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Transport;
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateRedemptionStatusRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
-import io.github.opendonationassistant.rabbit.TokenRPC;
+import io.github.opendonationassistant.rabbit.AsyncTokenRPC;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenResponse;
 import java.util.List;
@@ -42,15 +42,15 @@ public class TwitchClientTest {
 
   private TwitchApiClient api;
   private TwitchIdClient id;
-  private TokenRPC tokenRPC;
+  private AsyncTokenRPC asyncTokenRpc;
   private TwitchClient client;
 
   @BeforeEach
   public void setUp() {
     api = mock(TwitchApiClient.class);
     id = mock(TwitchIdClient.class);
-    tokenRPC = mock(TokenRPC.class);
-    client = new TwitchClient(api, id, tokenRPC, CLIENT_ID, CLIENT_SECRET);
+    asyncTokenRpc = mock(AsyncTokenRPC.class);
+    client = new TwitchClient(api, id, asyncTokenRpc, CLIENT_ID, CLIENT_SECRET);
   }
 
   private void givenAppToken(String value) {
@@ -61,7 +61,8 @@ public class TwitchClientTest {
   }
 
   private void givenUserToken(String value) {
-    when(tokenRPC.token(any())).thenReturn(new TokenResponse(value, "ok"));
+    when(asyncTokenRpc.token(any()))
+      .thenReturn(CompletableFuture.completedFuture(new TokenResponse(value, "ok")));
   }
 
   private static SubscribeRequest subscribeRequest() {
@@ -177,15 +178,17 @@ public class TwitchClientTest {
 
     client.sendChatMessage("rec-1", "rt-1", request).join();
 
-    verify(tokenRPC).token(new TokenRequest("rec-1", "rt-1"));
+    verify(asyncTokenRpc).token(new TokenRequest("rec-1", "rt-1"));
     verify(api).sendChatMessage(CLIENT_ID, "Bearer user-token", request);
   }
 
   @Test
   public void sendChatMessageFailsWithProblemWhenRpcTokenValueMissing() {
     var request = new SendChatMessageRequest("broadcaster", "sender", "hi");
-    when(tokenRPC.token(any()))
-      .thenReturn(new TokenResponse(null, "no access token"));
+    when(asyncTokenRpc.token(any()))
+      .thenReturn(
+        CompletableFuture.completedFuture(new TokenResponse(null, "no access token"))
+      );
 
     var thrown = assertThrows(
       CompletionException.class,
@@ -198,14 +201,49 @@ public class TwitchClientTest {
   }
 
   @Test
-  public void sendChatMessageCompletesExceptionallyWhenRpcReturnsNull() {
-    // tokenRPC is intentionally left unstubbed: Mockito returns null by default.
+  public void sendChatMessageFallsBackWhenRpcMessageIsMissing() {
+    var tokenResponse = mock(TokenResponse.class);
+    doReturn(null).when(tokenResponse).message();
+    when(asyncTokenRpc.token(any()))
+      .thenReturn(CompletableFuture.completedFuture(tokenResponse));
+    var request = new SendChatMessageRequest("broadcaster", "sender", "hi");
+
+    var thrown = assertThrows(
+      CompletionException.class,
+      () -> client.sendChatMessage("rec-1", "rt-1", request).join()
+    );
+
+    var problem = assertInstanceOf(Problem.class, thrown.getCause());
+    assertEquals("Unauthorized", problem.getTitle());
+    assertEquals("Unauthorized", problem.getDetail());
+  }
+
+  @Test
+  public void sendChatMessageFailsWithUnauthorizedWhenRpcReturnsNoResponse() {
+    when(asyncTokenRpc.token(any())).thenReturn(
+      CompletableFuture.completedFuture(null)
+    );
     var request = new SendChatMessageRequest("broadcaster", "sender", "hi");
 
     var future = client.sendChatMessage("rec-1", "rt-1", request);
 
     var thrown = assertThrows(CompletionException.class, future::join);
-    assertNotNull(thrown.getCause());
+    var problem = assertInstanceOf(Problem.class, thrown.getCause());
+    assertEquals("Unauthorized", problem.getTitle());
+    assertEquals("Unauthorized", problem.getDetail());
+  }
+
+  @Test
+  public void sendChatMessagePropagatesTokenRpcFailure() {
+    when(asyncTokenRpc.token(any()))
+      .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("rpc down")));
+    var request = new SendChatMessageRequest("broadcaster", "sender", "hi");
+
+    var future = client.sendChatMessage("rec-1", "rt-1", request);
+
+    var thrown = assertThrows(CompletionException.class, future::join);
+    var cause = assertInstanceOf(IllegalStateException.class, thrown.getCause());
+    assertEquals("rpc down", cause.getMessage());
   }
 
   @Test
@@ -275,7 +313,7 @@ public class TwitchClientTest {
       )
       .join();
 
-    verify(tokenRPC).token(new TokenRequest("rec-1", "rt-1"));
+    verify(asyncTokenRpc).token(new TokenRequest("rec-1", "rt-1"));
     verify(api)
       .updateRedemptionStatus(
         CLIENT_ID,

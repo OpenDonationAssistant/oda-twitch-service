@@ -35,7 +35,7 @@ oda-twitch-service/
 |------|----------|-------|
 | Add an EventSub event handler | `twitch/webhook/` | implement `TwitchEventHandler` |
 | Add a command handler | `twitch/listener/handler/` | extend `AbstractMessageHandler<T>` |
-| Call Twitch Helix API | `integration/twitch/TwitchClient.java` | facade handles token RPC |
+| Call Twitch Helix API | `integration/twitch/TwitchClient.java` | facade resolves the user token via `AsyncTokenRPC` |
 | Persist accounts/webhooks/rewards | `twitch/repository/` | Data + DataRepository, facade only for accounts/webhooks |
 | Add a DB column/table | `src/main/resources/db/migration/` | next `V{n}__*.sql` |
 | Add a metric | `twitch/metrics/TwitchMetrics.java` | Micrometer counters |
@@ -48,7 +48,7 @@ oda-twitch-service/
 | `Application` | class + `@Factory` | root | — | Bootstrap, RabbitMQ wiring, pins `standalone` env |
 | `TwitchEventsWebhook` | `@Controller` | twitch/webhook | — | `POST /twitch/events`, challenge handshake, dispatch |
 | `TwitchEventHandler` | interface | twitch/webhook | 8 impls | Event dispatch contract |
-| `TwitchClient` | `@Singleton` | integration/twitch | many | Twitch API facade, `runWithToken()` |
+| `TwitchClient` | `@Singleton` | integration/twitch | many | Twitch API facade, `runWithToken()` via `AsyncTokenRPC` |
 | `TwitchApiClient` | `@Client("twitch-api")` | integration/twitch | TwitchClient | Declarative Helix client, `@Retryable` |
 | `TwitchIdClient` | `@Client("twitch-id")` | integration/twitch | commands | Declarative ID client |
 | `CommandListener` | `@RabbitListener` | twitch/listener | — | Consumes `twitch.command` queue |
@@ -97,7 +97,7 @@ oda-twitch-service/
 ## NOTES
 - Requires env vars: `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` (required); `JDBC_URL`, `JDBC_USER`, `JDBC_PASSWORD`, `RABBITMQ_HOST` (defaults in `application-standalone.yml`).
 - `@Client("twitch-api")`/`@Client("twitch-id")` URLs come from `micronaut.http.services.*.urls` env vars — NOT in repo config; must be set at deploy time.
-- Shared logic lives in `oda-rabbit-conf` (0.11.232): `AMQPConfiguration`, `MessageProcessor`, `AbstractMessageHandler`, `TwitchFacade`, `TokenRPC`, `events.twitch` domain.
+- Shared logic lives in `oda-rabbit-conf` (0.12.250): `AMQPConfiguration`, `MessageProcessor`, `AbstractMessageHandler`, `TwitchFacade`, `TokenRPC`, `events.twitch` domain.
 - CI is externalized: `.github/workflows/maven.yml` delegates to `OpenDonationAssistant/oda-libraries@master`; release tags = GitHub RUN_NUMBER.
 - Known TODO: `TwitchAccountRepository.create` doesn't check duplicates.
 - `.mvn/wrapper/` is gitignored — clean checkouts rely on `mvnw` bootstrap.

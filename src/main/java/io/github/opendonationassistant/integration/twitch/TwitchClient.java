@@ -14,8 +14,9 @@ import io.github.opendonationassistant.integration.twitch.TwitchApiClient.Update
 import io.github.opendonationassistant.integration.twitch.TwitchApiClient.UpdateRedemptionStatusRequest;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.GetAccessRecordResponse;
 import io.github.opendonationassistant.integration.twitch.TwitchIdClient.ValidationResponse;
-import io.github.opendonationassistant.rabbit.TokenRPC;
+import io.github.opendonationassistant.rabbit.AsyncTokenRPC;
 import io.github.opendonationassistant.rabbit.TokenRPC.TokenRequest;
+import io.github.opendonationassistant.rabbit.TokenRPC.TokenResponse;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -34,19 +35,19 @@ public class TwitchClient {
   private final TwitchIdClient id;
   private final String clientId;
   private final String clientSecret;
-  private final TokenRPC tokenRPC;
+  private final AsyncTokenRPC asyncTokenRpc;
 
   @Inject
   public TwitchClient(
     TwitchApiClient api,
     TwitchIdClient id,
-    TokenRPC tokenRPC,
+    AsyncTokenRPC asyncTokenRpc,
     @Value("${twitch.client.id}") String clientId,
     @Value("${twitch.client.secret}") String clientSecret
   ) {
     this.api = api;
     this.id = id;
-    this.tokenRPC = tokenRPC;
+    this.asyncTokenRpc = asyncTokenRpc;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
   }
@@ -261,21 +262,23 @@ public class TwitchClient {
     String refreshTokenId,
     Function<String, CompletableFuture<T>> fn
   ) {
-    return CompletableFuture.supplyAsync(() ->
-      tokenRPC.token(new TokenRequest(recipientId, refreshTokenId))
-    ).thenCompose(token -> {
-      if (token == null || token.token() == null) {
-        return CompletableFuture.failedFuture(
-          Problem.builder()
-            .withTitle("Unauthorized")
-            .withDetail(
-              Optional.ofNullable(token.message()).orElse("Unauthorized")
-            )
-            .build()
-        );
-      }
-      var authHeader = "Bearer %s".formatted(token.token());
-      return fn.apply(authHeader);
-    });
+    return asyncTokenRpc
+      .token(new TokenRequest(recipientId, refreshTokenId))
+      .thenCompose(token -> {
+        if (token == null || token.token() == null) {
+          return CompletableFuture.failedFuture(
+            Problem.builder()
+              .withTitle("Unauthorized")
+              .withDetail(
+                Optional.ofNullable(token)
+                  .map(TokenResponse::message)
+                  .orElse("Unauthorized")
+              )
+              .build()
+          );
+        }
+        var authHeader = "Bearer %s".formatted(token.token());
+        return fn.apply(authHeader);
+      });
   }
 }
