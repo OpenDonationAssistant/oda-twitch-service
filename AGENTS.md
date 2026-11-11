@@ -5,7 +5,7 @@
 **Branch:** main
 
 ## OVERVIEW
-Micronaut 5.1 / Java 25 microservice in the OpenDonationAssistant ecosystem. Bridges Twitch (EventSub webhooks + Helix API) with the ODA platform via RabbitMQ commands and PostgreSQL persistence. Ships as a GraalVM native image.
+Micronaut 5.2.5 / Java 25 microservice in the OpenDonationAssistant ecosystem. Bridges Twitch (EventSub webhooks + Helix API) with the ODA platform via RabbitMQ commands and PostgreSQL persistence. Ships as a GraalVM native image.
 
 ## STRUCTURE
 ```

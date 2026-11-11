@@ -136,9 +136,7 @@ public class TwitchReward {
     @Nullable String reason
   ) {
     final CompletableFuture<Void> refunded = returnRedemption(redemptionId);
-    refunded.whenComplete((ignored, failure) ->
-      sendFailureChatMessage(reason)
-    );
+    refunded.whenComplete((ignored, failure) -> sendFailureChatMessage(reason));
     return refunded;
   }
 
